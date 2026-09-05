@@ -1,0 +1,14 @@
+node_modules/
+dist/
+target/
+src-tauri/target/
+ai/build/
+data/
+backups/
+logs/
+models/*.gguf
+settings.json
+artifacts/
+*.pdb
+/Work
+/ai/runtime
