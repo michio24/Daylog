@@ -1,0 +1,988 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@400;600&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=Zen+Old+Mincho:wght@400;600&family=Noto+Sans+JP:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --dl-font-body: 'Zen Kaku Gothic New', system-ui, sans-serif;
+    --dl-font-display: 'Shippori Mincho B1', serif;
+    --dl-font-mono: 'JetBrains Mono', monospace;
+  }
+  [data-dl-theme="mist"] {
+    --dl-font-body: 'Noto Sans JP', system-ui, sans-serif;
+    --dl-font-display: 'Noto Sans JP', system-ui, sans-serif;
+    --dl-font-mono: 'JetBrains Mono', monospace;
+  }
+  [data-dl-theme="fluent"] {
+    --dl-font-body: 'Segoe UI Variable Text', 'Segoe UI', 'Yu Gothic UI', system-ui, sans-serif;
+    --dl-font-display: 'Segoe UI Variable Display', 'Segoe UI Light', 'Segoe UI', 'Yu Gothic UI', system-ui, sans-serif;
+    --dl-font-mono: 'Cascadia Mono', Consolas, 'JetBrains Mono', monospace;
+  }
+  [data-dl-theme="dark"] {
+    --dl-font-body: 'Zen Old Mincho', serif;
+    --dl-font-display: 'Zen Old Mincho', serif;
+    --dl-font-mono: 'JetBrains Mono', monospace;
+  }
+  :root, [data-dl-theme="light"] {
+    --dl-bg: #F4F1EB; --dl-surface: #FFFDF9; --dl-surface-2: #EDE8DF; --dl-surface-3: #F7F4EE;
+    --dl-ink: #1B1917; --dl-ink-2: #5C564C; --dl-ink-3: #948C7F;
+    --dl-line: #E2DCD1; --dl-line-2: #D3CBBD;
+    --dl-accent: #2B5468; --dl-accent-soft: #E1EAEE; --dl-accent-ink: #23485A;
+    --dl-warm: #A9662F; --dl-warm-soft: #F2E7DA;
+    --dl-shadow: 0 1px 2px rgba(40,32,20,.05), 0 8px 24px -18px rgba(40,32,20,.35);
+  }
+  [data-dl-theme="mist"] {
+    --dl-bg: #EDF0F2; --dl-surface: #FBFCFD; --dl-surface-2: #E2E7EB; --dl-surface-3: #F3F6F8;
+    --dl-ink: #14181C; --dl-ink-2: #4F5A63; --dl-ink-3: #8B959D;
+    --dl-line: #DBE1E6; --dl-line-2: #C7CFD6;
+    --dl-accent: #3A5F8A; --dl-accent-soft: #E0E8F2; --dl-accent-ink: #2E4E73;
+    --dl-warm: #7C6A9C; --dl-warm-soft: #EAE6F1;
+    --dl-shadow: 0 1px 2px rgba(20,32,44,.05), 0 8px 24px -18px rgba(20,32,44,.4);
+  }
+  [data-dl-theme="fluent"] {
+    --dl-bg: #F3F3F3; --dl-surface: #FFFFFF; --dl-surface-2: #EDEDED; --dl-surface-3: #FAFAFA;
+    --dl-ink: #1B1B1B; --dl-ink-2: #5C5C5C; --dl-ink-3: #8A8A8A;
+    --dl-line: #E5E5E5; --dl-line-2: #D1D1D1;
+    --dl-accent: #0F6CBD; --dl-accent-soft: #E1EFFA; --dl-accent-ink: #0B5090;
+    --dl-warm: #7160A8; --dl-warm-soft: #EFEBF7;
+    --dl-shadow: 0 1px 2px rgba(0,0,0,.07), 0 4px 10px -6px rgba(0,0,0,.18);
+  }
+  [data-dl-theme="dark"] {
+    --dl-bg: #131210; --dl-surface: #1C1A17; --dl-surface-2: #23201B; --dl-surface-3: #201E1A;
+    --dl-ink: #F0EBE1; --dl-ink-2: #ABA396; --dl-ink-3: #7C7466;
+    --dl-line: #2D2924; --dl-line-2: #3A352D;
+    --dl-accent: #85B6C8; --dl-accent-soft: #1E2C33; --dl-accent-ink: #A8CFDD;
+    --dl-warm: #D6A06A; --dl-warm-soft: #2C2318;
+    --dl-shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 30px -20px rgba(0,0,0,.8);
+  }
+  html, body { margin: 0; padding: 0; background: var(--dl-bg); }
+  * { box-sizing: border-box; }
+  a { color: var(--dl-accent); text-decoration: none; }
+  a:hover { color: var(--dl-accent-ink); text-decoration: underline; }
+  input, textarea, button { font: inherit; color: inherit; }
+  textarea { resize: none; }
+  ::selection { background: var(--dl-accent-soft); }
+  .dl-md h1 { font-size: 19px; margin: 18px 0 8px; font-weight: 600; letter-spacing: .01em; }
+  .dl-md h2 { font-size: 16px; margin: 16px 0 6px; font-weight: 600; }
+  .dl-md h3 { font-size: 14px; margin: 14px 0 6px; font-weight: 600; color: var(--dl-ink-2); }
+  .dl-md p { margin: 0 0 10px; }
+  .dl-md ul, .dl-md ol { margin: 0 0 10px; padding-left: 20px; }
+  .dl-md li { margin: 3px 0; }
+  .dl-md li.dl-check { list-style: none; margin-left: -20px; }
+  .dl-md code { font-family: var(--dl-font-mono); font-size: .87em; background: var(--dl-surface-2); padding: 1px 5px; border-radius: 4px; }
+  .dl-md blockquote { margin: 0 0 10px; padding-left: 12px; border-left: 2px solid var(--dl-line-2); color: var(--dl-ink-2); }
+  .dl-md > :first-child { margin-top: 0; }
+</style>
+</helmet>
+<div data-dl-theme="{{ theme }}" style="min-height:100vh;background:var(--dl-bg);color:var(--dl-ink);font-family:var(--dl-font-body);font-size:14px;line-height:1.65;-webkit-font-smoothing:antialiased">
+
+  <header style="position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:20px;height:52px;padding:0 18px 0 22px;background:var(--dl-bg);border-bottom:1px solid var(--dl-line)">
+    <div style="display:flex;align-items:baseline;gap:12px;min-width:150px">
+      <span style="font-family:var(--dl-font-display);font-size:17px;letter-spacing:.06em">Daylog</span>
+      <span style="font-size:11px;color:var(--dl-ink-3);letter-spacing:.04em">{{ headerDate }}</span>
+    </div>
+    <nav style="display:flex;align-items:center;gap:2px">
+      <button onClick="{{ goToday }}" style="{{ navTodayStyle }}">今日</button>
+      <button onClick="{{ goHistory }}" style="{{ navHistoryStyle }}">履歴</button>
+      <button onClick="{{ goSearch }}" style="{{ navSearchStyle }}">検索</button>
+      <button onClick="{{ goSettings }}" style="{{ navSettingsStyle }}">設定</button>
+    </nav>
+    <div style="flex:1"></div>
+    <div style="display:flex;align-items:center;gap:6px">
+      <sc-if value="{{ isToday }}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex;align-items:center;gap:2px;padding:3px;background:var(--dl-surface-2);border-radius:8px;margin-right:6px">
+          <button onClick="{{ setLayoutA }}" style="{{ layoutAStyle }}">1カラム</button>
+          <button onClick="{{ setLayoutB }}" style="{{ layoutBStyle }}">2カラム</button>
+        </div>
+      </sc-if>
+      <button onClick="{{ toggleTheme }}" style="padding:5px 12px;background:transparent;border:1px solid var(--dl-line);border-radius:8px;font-size:12px;color:var(--dl-ink-2);cursor:pointer" style-hover="border-color:var(--dl-line-2);color:var(--dl-ink)">{{ themeLabel }}</button>
+      <div style="display:flex;gap:14px;margin-left:14px;padding-left:16px;border-left:1px solid var(--dl-line);color:var(--dl-ink-3);font-size:11px">
+        <span style="cursor:default">—</span><span style="cursor:default">▢</span><span style="cursor:default">✕</span>
+      </div>
+    </div>
+  </header>
+
+  <sc-if value="{{ isToday }}" hint-placeholder-val="{{ true }}">
+  <main style="padding:40px 32px 96px">
+    <div style="{{ pageWidthStyle }}">
+
+      <sc-if value="{{ isClosed }}">
+        <div style="display:flex;align-items:center;gap:14px;margin-bottom:22px;padding:12px 18px;background:var(--dl-accent-soft);border-radius:12px;font-size:13px;color:var(--dl-accent-ink)">
+          <span>この日は完了済みです。</span>
+          <button onClick="{{ reopenDay }}" style="padding:3px 12px;background:transparent;border:1px solid currentColor;border-radius:7px;font-size:12px;cursor:pointer;opacity:.8" style-hover="opacity:1">再編集</button>
+        </div>
+      </sc-if>
+
+      <div style="margin-bottom:30px">
+        <div style="font-size:12px;letter-spacing:.14em;color:var(--dl-ink-3);margin-bottom:8px">{{ fullDate }}</div>
+        <h1 style="margin:0;font-family:var(--dl-font-display);font-weight:400;font-size:34px;letter-spacing:.02em;line-height:1.25">{{ greeting }}</h1>
+        <div style="margin-top:10px;font-size:13px;color:var(--dl-ink-2)">{{ streakLine }}</div>
+      </div>
+
+      <div style="{{ wrapperStyle }}">
+
+        <div style="{{ groupStyle }}">
+          <section style="background:var(--dl-surface);border:1px solid var(--dl-line);border-radius:14px;padding:20px 22px 16px;box-shadow:var(--dl-shadow)">
+            <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px">
+              <h2 style="margin:0;font-size:13px;font-weight:700;letter-spacing:.1em;color:var(--dl-ink-2)">今日やること</h2>
+              <span style="font-size:11px;color:var(--dl-ink-3);font-family:var(--dl-font-mono)">{{ taskProgress }}</span>
+            </div>
+            <div style="display:flex;flex-direction:column">
+              <sc-for list="{{ tasks }}" as="task" hint-placeholder-count="3">
+                <div style="display:flex;align-items:flex-start;gap:12px;padding:7px 6px;margin:0 -6px;border-radius:8px" style-hover="background:var(--dl-surface-3)">
+                  <button onClick="{{ task.toggle }}" style="{{ task.boxStyle }}">{{ task.mark }}</button>
+                  <div style="flex:1;min-width:0">
+                    <div style="{{ task.titleStyle }}">{{ task.title }}</div>
+                  </div>
+                  <sc-if value="{{ task.carried }}">
+                    <span style="flex:none;padding:1px 8px;border:1px solid var(--dl-line-2);border-radius:20px;font-size:10px;color:var(--dl-ink-3);letter-spacing:.04em">持ち越し</span>
+                  </sc-if>
+                </div>
+              </sc-for>
+            </div>
+            <sc-if value="{{ noTasks }}">
+              <div style="padding:6px 0 10px;font-size:13px;color:var(--dl-ink-3)">まず、今日やることを1つだけ書いてみる。</div>
+            </sc-if>
+            <div style="display:flex;align-items:center;gap:10px;margin-top:8px;padding-top:12px;border-top:1px solid var(--dl-line)">
+              <span style="color:var(--dl-ink-3);font-size:15px;line-height:1">＋</span>
+              <input ref="{{ taskInputRef }}" value="{{ taskDraft }}" onChange="{{ onTaskDraft }}" onKeyDown="{{ onTaskKey }}" placeholder="タスクを追加" style="flex:1;padding:4px 0;background:transparent;border:none;outline:none;font-size:14px" />
+              <span style="font-family:var(--dl-font-mono);font-size:10px;color:var(--dl-ink-3)">Ctrl+T</span>
+            </div>
+          </section>
+
+          <section style="background:var(--dl-surface);border:1px solid var(--dl-line);border-radius:14px;padding:20px 22px 16px;box-shadow:var(--dl-shadow)">
+            <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:16px">
+              <h2 style="margin:0;font-size:13px;font-weight:700;letter-spacing:.1em;color:var(--dl-ink-2)">今日の記録</h2>
+              <span style="font-size:11px;color:var(--dl-ink-3);font-family:var(--dl-font-mono)">{{ entryCount }}</span>
+            </div>
+            <div style="display:flex;flex-direction:column">
+              <sc-for list="{{ entries }}" as="e" hint-placeholder-count="3">
+                <div style="display:grid;grid-template-columns:58px 1fr;gap:14px;padding:0 0 16px">
+                  <div style="font-family:var(--dl-font-mono);font-size:12px;color:var(--dl-ink-3);padding-top:2px">{{ e.time }}</div>
+                  <div style="border-left:1px solid var(--dl-line);padding-left:16px;margin-left:-2px">
+                    <div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap">
+                      <span style="font-size:14px;font-weight:500">{{ e.title }}</span>
+                      <button onClick="{{ e.cycleType }}" title="クリックでタグを切り替え" style="{{ e.typeStyle }}">{{ e.type }}</button>
+                    </div>
+                    <sc-if value="{{ e.body }}">
+                      <div style="margin-top:3px;font-size:13px;color:var(--dl-ink-2);text-wrap:pretty">{{ e.body }}</div>
+                    </sc-if>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+            <sc-if value="{{ noEntries }}">
+              <div style="padding:4px 0 14px;font-size:13px;color:var(--dl-ink-3);text-wrap:pretty">何かあったら、その都度ここに書き足していく。時刻は自動で記録されます。</div>
+            </sc-if>
+            <div style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--dl-surface-3);border:1px solid var(--dl-line);border-radius:10px">
+              <span style="font-family:var(--dl-font-mono);font-size:12px;color:var(--dl-ink-3)">{{ nowTime }}</span>
+              <input ref="{{ entryInputRef }}" value="{{ entryDraft }}" onChange="{{ onEntryDraft }}" onKeyDown="{{ onEntryKey }}" placeholder="今あったことを書く…" style="flex:1;padding:2px 0;background:transparent;border:none;outline:none;font-size:14px" />
+              <span style="font-family:var(--dl-font-mono);font-size:10px;color:var(--dl-ink-3)">Ctrl+Enter</span>
+            </div>
+            <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
+              <sc-for list="{{ typeChips }}" as="c" hint-placeholder-count="5">
+                <button onClick="{{ c.pick }}" style="{{ c.style }}">{{ c.label }}</button>
+              </sc-for>
+            </div>
+          </section>
+        </div>
+
+        <div style="{{ groupStyle }}">
+          <section style="background:var(--dl-surface);border:1px solid var(--dl-line);border-radius:14px;padding:20px 22px;box-shadow:var(--dl-shadow)">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+              <h2 style="margin:0;font-size:13px;font-weight:700;letter-spacing:.1em;color:var(--dl-ink-2)">今日のメモ</h2>
+              <div style="display:flex;gap:2px;padding:3px;background:var(--dl-surface-2);border-radius:8px">
+                <button onClick="{{ setEdit }}" style="{{ editModeStyle }}">編集</button>
+                <button onClick="{{ setView }}" style="{{ viewModeStyle }}">表示</button>
+              </div>
+            </div>
+            <sc-if value="{{ isEditMode }}" hint-placeholder-val="{{ true }}">
+              <textarea ref="{{ noteRef }}" value="{{ note }}" onChange="{{ onNote }}" placeholder="# 今日考えたこと&#10;&#10;- Markdown で自由に" style="width:100%;min-height:250px;padding:0;background:transparent;border:none;outline:none;font-family:var(--dl-font-mono);font-size:12.5px;line-height:1.85;color:var(--dl-ink)"></textarea>
+            </sc-if>
+            <sc-if value="{{ isViewMode }}">
+              <div style="min-height:250px;font-size:14px">{{ noteRendered }}</div>
+            </sc-if>
+            <div style="margin-top:8px;padding-top:10px;border-top:1px solid var(--dl-line);font-size:11px;color:var(--dl-ink-3)">{{ saveState }}</div>
+          </section>
+
+          <section ref="{{ reviewRef }}" style="background:var(--dl-surface);border:1px solid var(--dl-line);border-radius:14px;box-shadow:var(--dl-shadow);overflow:hidden">
+            <button onClick="{{ toggleReview }}" style="display:flex;align-items:center;justify-content:space-between;width:100%;padding:18px 22px;background:transparent;border:none;cursor:pointer;text-align:left">
+              <span style="display:flex;align-items:center;gap:10px">
+                <span style="font-size:13px;font-weight:700;letter-spacing:.1em;color:var(--dl-ink-2)">今日を振り返る</span>
+                <span style="font-size:11px;color:var(--dl-ink-3)">{{ reviewHint }}</span>
+              </span>
+              <span style="{{ chevronStyle }}">▾</span>
+            </button>
+            <sc-if value="{{ reviewOpen }}" hint-placeholder-val="{{ true }}">
+              <div style="padding:0 22px 22px">
+                <div style="display:flex;flex-direction:column;gap:16px">
+                  <div>
+                    <div style="font-size:12px;color:var(--dl-ink-3);margin-bottom:5px">今日よかったこと</div>
+                    <textarea value="{{ reviewGood }}" onChange="{{ onGood }}" placeholder="うまくいったことを一言で" style="width:100%;min-height:52px;padding:10px 12px;background:var(--dl-surface-3);border:1px solid var(--dl-line);border-radius:9px;outline:none;font-size:13px;line-height:1.7"></textarea>
+                  </div>
+                  <div>
+                    <div style="font-size:12px;color:var(--dl-ink-3);margin-bottom:5px">うまくいかなかったこと</div>
+                    <textarea value="{{ reviewBad }}" onChange="{{ onBad }}" placeholder="引っかかったこと" style="width:100%;min-height:52px;padding:10px 12px;background:var(--dl-surface-3);border:1px solid var(--dl-line);border-radius:9px;outline:none;font-size:13px;line-height:1.7"></textarea>
+                  </div>
+                  <div>
+                    <div style="font-size:12px;color:var(--dl-ink-3);margin-bottom:5px">明日に持ち越すこと</div>
+                    <textarea value="{{ reviewTomorrow }}" onChange="{{ onTomorrow }}" placeholder="明日の自分への申し送り" style="width:100%;min-height:52px;padding:10px 12px;background:var(--dl-surface-3);border:1px solid var(--dl-line);border-radius:9px;outline:none;font-size:13px;line-height:1.7"></textarea>
+                  </div>
+                </div>
+
+                <sc-if value="{{ aiEnabled }}" hint-placeholder-val="{{ true }}">
+                  <div style="margin-top:18px;padding-top:18px;border-top:1px solid var(--dl-line)">
+                    <sc-if value="{{ noAi }}" hint-placeholder-val="{{ true }}">
+                      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+                        <button onClick="{{ runAi }}" style="padding:8px 16px;background:var(--dl-warm-soft);border:1px solid var(--dl-line);border-radius:9px;font-size:13px;color:var(--dl-warm);cursor:pointer" style-hover="border-color:var(--dl-warm)">AIで今日をまとめる</button>
+                        <span style="font-size:11px;color:var(--dl-ink-3)">ローカルLLM · Qwen2.5-3B-Instruct · 端末内で完結</span>
+                      </div>
+                    </sc-if>
+                    <sc-if value="{{ aiLoading }}">
+                      <div style="display:flex;align-items:center;gap:10px;font-size:13px;color:var(--dl-ink-3)">
+                        <span style="width:7px;height:7px;border-radius:50%;background:var(--dl-warm);display:inline-block"></span>
+                        <span>モデルを読み込み、今日の記録を要約しています…</span>
+                      </div>
+                    </sc-if>
+                    <sc-if value="{{ hasAi }}">
+                      <div style="padding:16px 18px;background:var(--dl-warm-soft);border-radius:11px">
+                        <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:10px">
+                          <span style="font-size:11px;letter-spacing:.1em;color:var(--dl-warm);font-weight:700">今日の総括</span>
+                          <button onClick="{{ runAi }}" style="background:transparent;border:none;font-size:11px;color:var(--dl-ink-3);cursor:pointer;text-decoration:underline">再生成</button>
+                        </div>
+                        <p style="margin:0;font-size:13.5px;line-height:1.85;color:var(--dl-ink);text-wrap:pretty">{{ aiSummary }}</p>
+                        <div style="display:flex;flex-direction:column;gap:4px;margin-top:14px;padding-top:12px;border-top:1px solid var(--dl-line)">
+                          <sc-for list="{{ aiLines }}" as="line" hint-placeholder-count="3">
+                            <div style="display:flex;gap:9px;font-size:12.5px;color:var(--dl-ink-2)">
+                              <span style="color:var(--dl-warm)">—</span><span>{{ line }}</span>
+                            </div>
+                          </sc-for>
+                        </div>
+                      </div>
+                    </sc-if>
+                  </div>
+                </sc-if>
+
+                <div style="display:flex;align-items:center;justify-content:flex-end;gap:16px;margin-top:20px">
+                  <span style="font-size:11px;color:var(--dl-ink-3)">{{ closeHint }}</span>
+                  <button onClick="{{ closeDay }}" style="{{ closeBtnStyle }}">{{ closeBtnLabel }}</button>
+                </div>
+              </div>
+            </sc-if>
+          </section>
+        </div>
+
+      </div>
+    </div>
+  </main>
+  </sc-if>
+
+  <sc-if value="{{ isHistory }}">
+  <main style="padding:40px 32px 80px">
+    <div style="max-width:1080px;margin:0 auto">
+      <div style="margin-bottom:26px">
+        <div style="font-size:12px;letter-spacing:.14em;color:var(--dl-ink-3);margin-bottom:8px">HISTORY</div>
+        <h1 style="margin:0;font-family:var(--dl-font-display);font-weight:400;font-size:30px">記録の履歴</h1>
+      </div>
+      <div style="display:grid;grid-template-columns:1.25fr 1fr;gap:20px;align-items:start">
+        <section style="background:var(--dl-surface);border:1px solid var(--dl-line);border-radius:14px;padding:22px;box-shadow:var(--dl-shadow)">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+            <div style="display:flex;align-items:center;gap:10px">
+              <button onClick="{{ prevMonth }}" style="{{ navPrevStyle }}">‹</button>
+              <h2 style="margin:0;min-width:104px;text-align:center;font-family:var(--dl-font-display);font-size:18px;font-weight:400">{{ monthLabel }}</h2>
+              <button onClick="{{ nextMonth }}" style="{{ navNextStyle }}">›</button>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;font-size:11px;color:var(--dl-ink-3)">
+              <span>少ない</span>
+              <span style="display:inline-block;width:11px;height:11px;border-radius:3px;background:var(--dl-surface-2)"></span>
+              <span style="display:inline-block;width:11px;height:11px;border-radius:3px;background:var(--dl-accent);opacity:.28"></span>
+              <span style="display:inline-block;width:11px;height:11px;border-radius:3px;background:var(--dl-accent);opacity:.6"></span>
+              <span style="display:inline-block;width:11px;height:11px;border-radius:3px;background:var(--dl-accent)"></span>
+              <span>多い</span>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:8px">
+            <sc-for list="{{ weekdays }}" as="w" hint-placeholder-count="7">
+              <div style="text-align:center;font-size:11px;color:var(--dl-ink-3);padding-bottom:4px">{{ w }}</div>
+            </sc-for>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px">
+            <sc-for list="{{ calendarCells }}" as="c" hint-placeholder-count="35">
+              <button onClick="{{ c.pick }}" style="{{ c.style }}">{{ c.label }}</button>
+            </sc-for>
+          </div>
+          <div style="display:flex;gap:26px;margin-top:22px;padding-top:18px;border-top:1px solid var(--dl-line)">
+            <div>
+              <div style="font-family:var(--dl-font-mono);font-size:22px">{{ monthDayCount }}</div>
+              <div style="font-size:11px;color:var(--dl-ink-3)">{{ monthDayLabel }}</div>
+            </div>
+            <div>
+              <div style="font-family:var(--dl-font-mono);font-size:22px">12</div>
+              <div style="font-size:11px;color:var(--dl-ink-3)">連続記録</div>
+            </div>
+            <div>
+              <div style="font-family:var(--dl-font-mono);font-size:22px">143</div>
+              <div style="font-size:11px;color:var(--dl-ink-3)">総記録数</div>
+            </div>
+          </div>
+        </section>
+        <section style="background:var(--dl-surface);border:1px solid var(--dl-line);border-radius:14px;padding:22px;box-shadow:var(--dl-shadow)">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:16px">
+            <div>
+              <div style="font-size:12px;letter-spacing:.14em;color:var(--dl-ink-3);margin-bottom:6px">{{ selectedDate }}</div>
+              <h2 style="margin:0;font-family:var(--dl-font-display);font-size:20px;font-weight:400">{{ selectedTitle }}</h2>
+              <div style="margin-top:4px;font-size:11px;color:var(--dl-ink-3)">{{ pastSaved }}</div>
+            </div>
+            <sc-if value="{{ selectedHasData }}" hint-placeholder-val="{{ true }}">
+              <button onClick="{{ toggleEditPast }}" style="{{ pastEditStyle }}">{{ pastEditLabel }}</button>
+            </sc-if>
+          </div>
+          <sc-if value="{{ selectedHasData }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;flex-direction:column;gap:14px">
+              <sc-for list="{{ selectedEntries }}" as="e" hint-placeholder-count="3">
+                <div style="display:grid;grid-template-columns:52px 1fr;gap:12px">
+                  <sc-if value="{{ notEditingPast }}" hint-placeholder-val="{{ true }}">
+                    <div style="font-family:var(--dl-font-mono);font-size:12px;color:var(--dl-ink-3)">{{ e.time }}</div>
+                    <div>
+                      <div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap">
+                        <span style="font-size:13.5px;font-weight:500">{{ e.title }}</span>
+                        <sc-if value="{{ e.type }}">
+                          <span style="{{ e.typeStyle }}">{{ e.type }}</span>
+                        </sc-if>
+                      </div>
+                      <div style="font-size:12.5px;color:var(--dl-ink-2)">{{ e.body }}</div>
+                    </div>
+                  </sc-if>
+                  <sc-if value="{{ editingPast }}">
+                    <input value="{{ e.time }}" onChange="{{ e.onTime }}" style="width:52px;align-self:start;height:30px;padding:5px 6px;background:var(--dl-surface-3);border:1px solid var(--dl-line);border-radius:7px;outline:none;font-family:var(--dl-font-mono);font-size:12px;text-align:center;color:var(--dl-ink-2)" />
+                    <div style="display:flex;flex-direction:column;gap:5px">
+                      <div style="display:flex;gap:6px">
+                        <input value="{{ e.title }}" onChange="{{ e.onTitle }}" style="flex:1;padding:6px 10px;background:var(--dl-surface-3);border:1px solid var(--dl-line-2);border-radius:8px;outline:none;font-size:13.5px;font-weight:500" />
+                        <button onClick="{{ e.remove }}" title="この記録を削除" style="flex:none;width:28px;background:transparent;border:1px solid var(--dl-line);border-radius:8px;font-size:12px;color:var(--dl-ink-3);cursor:pointer" style-hover="border-color:var(--dl-warm);color:var(--dl-warm)">✕</button>
+                      </div>
+                      <textarea value="{{ e.body }}" onChange="{{ e.onBody }}" placeholder="詳細" style="width:100%;min-height:44px;padding:8px 10px;background:var(--dl-surface-3);border:1px solid var(--dl-line);border-radius:8px;outline:none;font-size:12.5px;line-height:1.7;color:var(--dl-ink-2)"></textarea>
+                      {{ e.typeChipRow }}
+                    </div>
+                  </sc-if>
+                </div>
+              </sc-for>
+              <sc-if value="{{ editingPast }}">
+                <button onClick="{{ addPastEntry }}" style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:transparent;border:1px dashed var(--dl-line-2);border-radius:9px;font-size:12.5px;color:var(--dl-ink-3);cursor:pointer" style-hover="border-color:var(--dl-accent);color:var(--dl-accent)"><span>＋</span><span>この日に記録を追加</span></button>
+              </sc-if>
+              <sc-if value="{{ selectedHasNote }}" hint-placeholder-val="{{ true }}">
+                <div style="margin-top:4px;padding-top:16px;border-top:1px solid var(--dl-line)">
+                  <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:8px">
+                    <div style="font-size:11px;letter-spacing:.12em;color:var(--dl-ink-3);font-weight:700">この日のメモ</div>
+                    <div style="font-size:11px;color:var(--dl-ink-3)">{{ pastEditHint }}</div>
+                  </div>
+                  <sc-if value="{{ notEditingPast }}" hint-placeholder-val="{{ true }}">
+                    <div style="font-size:13px;color:var(--dl-ink);max-height:220px;overflow:auto">{{ selectedNote }}</div>
+                  </sc-if>
+                  <sc-if value="{{ editingPast }}">
+                    <textarea value="{{ selectedNoteRaw }}" onChange="{{ onPastNote }}" style="width:100%;min-height:180px;padding:12px 14px;background:var(--dl-surface-3);border:1px solid var(--dl-line-2);border-radius:10px;outline:none;font-family:var(--dl-font-mono);font-size:12.5px;line-height:1.85;color:var(--dl-ink)"></textarea>
+                  </sc-if>
+                </div>
+              </sc-if>
+              <sc-if value="{{ selectedHasReview }}" hint-placeholder-val="{{ true }}">
+                <div style="padding-top:16px;border-top:1px solid var(--dl-line);display:flex;flex-direction:column;gap:10px">
+                  <div style="font-size:11px;letter-spacing:.12em;color:var(--dl-ink-3);font-weight:700">振り返り</div>
+                  <sc-for list="{{ selectedReview }}" as="r" hint-placeholder-count="2">
+                    <div>
+                      <div style="font-size:11.5px;color:var(--dl-ink-3);margin-bottom:3px">{{ r.label }}</div>
+                      <sc-if value="{{ notEditingPast }}" hint-placeholder-val="{{ true }}">
+                        <div style="font-size:13px;color:var(--dl-ink-2);text-wrap:pretty">{{ r.text }}</div>
+                      </sc-if>
+                      <sc-if value="{{ editingPast }}">
+                        <textarea value="{{ r.text }}" onChange="{{ r.onChange }}" style="width:100%;min-height:48px;padding:9px 12px;background:var(--dl-surface-3);border:1px solid var(--dl-line);border-radius:9px;outline:none;font-size:13px;line-height:1.7"></textarea>
+                      </sc-if>
+                    </div>
+                  </sc-for>
+                </div>
+              </sc-if>
+              <div style="padding:14px 16px;background:var(--dl-surface-3);border-radius:10px;font-size:12.5px;color:var(--dl-ink-2);line-height:1.8;text-wrap:pretty">
+                <div style="font-size:11px;letter-spacing:.1em;color:var(--dl-warm);font-weight:700;margin-bottom:6px">AIまとめ</div>
+                {{ selectedSummary }}
+              </div>
+            </div>
+          </sc-if>
+          <sc-if value="{{ selectedEmpty }}">
+            <div style="font-size:13px;color:var(--dl-ink-3)">この日の記録はありません。</div>
+          </sc-if>
+        </section>
+      </div>
+    </div>
+  </main>
+  </sc-if>
+
+  <sc-if value="{{ isSearch }}">
+  <main style="padding:40px 32px 80px">
+    <div style="max-width:760px;margin:0 auto">
+      <div style="margin-bottom:22px">
+        <div style="font-size:12px;letter-spacing:.14em;color:var(--dl-ink-3);margin-bottom:8px">SEARCH</div>
+        <h1 style="margin:0;font-family:var(--dl-font-display);font-weight:400;font-size:30px">記録を探す</h1>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;padding:12px 18px;background:var(--dl-surface);border:1px solid var(--dl-line-2);border-radius:12px;box-shadow:var(--dl-shadow)">
+        <input ref="{{ searchRef }}" value="{{ query }}" onChange="{{ onQuery }}" placeholder="キーワードで検索" style="flex:1;background:transparent;border:none;outline:none;font-size:15px" />
+        <span style="font-family:var(--dl-font-mono);font-size:10px;color:var(--dl-ink-3)">Ctrl+F</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;margin-top:14px;font-size:12px;color:var(--dl-ink-3)">
+        <span>{{ resultCount }}</span>
+        <span>·</span>
+        <span>タスク / 記録 / メモ / 振り返り / AIまとめ を横断</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:2px;margin-top:18px">
+        <sc-for list="{{ results }}" as="r" hint-placeholder-count="3">
+          <div style="padding:16px 18px;border-radius:12px;border:1px solid transparent;cursor:pointer" style-hover="background:var(--dl-surface);border-color:var(--dl-line)">
+            <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:4px">
+              <span style="font-family:var(--dl-font-mono);font-size:12px;color:var(--dl-accent)">{{ r.date }}</span>
+              <span style="font-size:11px;color:var(--dl-ink-3)">{{ r.source }}</span>
+            </div>
+            <div style="font-size:14px;line-height:1.7;text-wrap:pretty">{{ r.text }}</div>
+          </div>
+        </sc-for>
+      </div>
+      <sc-if value="{{ noResults }}">
+        <div style="padding:40px 0;text-align:center;font-size:13px;color:var(--dl-ink-3)">該当する記録は見つかりませんでした。</div>
+      </sc-if>
+    </div>
+  </main>
+  </sc-if>
+
+  <sc-if value="{{ isSettings }}">
+  <main style="padding:40px 32px 80px">
+    <div style="max-width:680px;margin:0 auto">
+      <div style="margin-bottom:26px">
+        <div style="font-size:12px;letter-spacing:.14em;color:var(--dl-ink-3);margin-bottom:8px">SETTINGS</div>
+        <h1 style="margin:0;font-family:var(--dl-font-display);font-weight:400;font-size:30px">設定</h1>
+      </div>
+
+      <section style="background:var(--dl-surface);border:1px solid var(--dl-line);border-radius:14px;padding:6px 22px;box-shadow:var(--dl-shadow);margin-bottom:18px">
+        <div style="padding:16px 0;border-bottom:1px solid var(--dl-line)">
+          <div style="font-size:11px;letter-spacing:.12em;color:var(--dl-ink-3);font-weight:700">一般</div>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 0;border-bottom:1px solid var(--dl-line)">
+          <div>
+            <div style="font-size:14px">テーマ</div>
+            <div style="font-size:12px;color:var(--dl-ink-3)">配色と書体が連動します：紙＝明朝＋Zen角ゴ / 霧＝Noto Sans / 流＝Segoe UI（Fluent 準拠） / 墨＝Zen Old Mincho</div>
+          </div>
+          <div style="display:flex;gap:2px;padding:3px;background:var(--dl-surface-2);border-radius:9px">
+            <sc-for list="{{ themeOptions }}" as="t" hint-placeholder-count="3">
+              <button onClick="{{ t.pick }}" style="{{ t.style }}">{{ t.label }}</button>
+            </sc-for>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 0;border-bottom:1px solid var(--dl-line)">
+          <div>
+            <div style="font-size:14px">自動保存</div>
+            <div style="font-size:12px;color:var(--dl-ink-3)">入力停止から2秒後、およびフォーカス移動時</div>
+          </div>
+          <span style="font-size:13px;color:var(--dl-ink-3)">有効</span>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 0">
+          <div>
+            <div style="font-size:14px">初回起動プレビュー</div>
+            <div style="font-size:12px;color:var(--dl-ink-3)">記録が何もない状態の「今日」を表示する</div>
+          </div>
+          <button onClick="{{ toggleFirstRun }}" style="{{ firstRunToggleStyle }}"><span style="{{ firstRunKnobStyle }}"></span></button>
+        </div>
+      </section>
+
+      <section style="background:var(--dl-surface);border:1px solid var(--dl-line);border-radius:14px;padding:6px 22px;box-shadow:var(--dl-shadow);margin-bottom:18px">
+        <div style="padding:16px 0;border-bottom:1px solid var(--dl-line)">
+          <div style="font-size:11px;letter-spacing:.12em;color:var(--dl-ink-3);font-weight:700">ローカルAI</div>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 0;border-bottom:1px solid var(--dl-line)">
+          <div>
+            <div style="font-size:14px">ローカルAIを使う</div>
+            <div style="font-size:12px;color:var(--dl-ink-3)">OFFでもジャーナル機能はすべて使えます</div>
+          </div>
+          <button onClick="{{ toggleAi }}" style="{{ aiToggleStyle }}"><span style="{{ aiKnobStyle }}"></span></button>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 0;border-bottom:1px solid var(--dl-line)">
+          <div>
+            <div style="font-size:14px">モデル</div>
+            <div style="font-family:var(--dl-font-mono);font-size:12px;color:var(--dl-ink-3)">models/qwen2.5-3b-instruct-q4.gguf</div>
+          </div>
+          <button style="padding:6px 14px;background:transparent;border:1px solid var(--dl-line);border-radius:8px;font-size:13px;cursor:pointer;color:var(--dl-ink-2)">変更</button>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 0;border-bottom:1px solid var(--dl-line)">
+          <div style="font-size:14px">推論モード</div>
+          <div style="display:flex;gap:2px;padding:3px;background:var(--dl-surface-2);border-radius:9px">
+            <sc-for list="{{ inferModes }}" as="m" hint-placeholder-count="3">
+              <button onClick="{{ m.pick }}" style="{{ m.style }}">{{ m.label }}</button>
+            </sc-for>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 0">
+          <div>
+            <div style="font-size:14px">モデルフォルダ</div>
+            <div style="font-family:var(--dl-font-mono);font-size:12px;color:var(--dl-ink-3)">C:\Users\you\Daylog\models</div>
+          </div>
+          <button style="padding:6px 14px;background:transparent;border:1px solid var(--dl-line);border-radius:8px;font-size:13px;cursor:pointer;color:var(--dl-ink-2)">開く</button>
+        </div>
+      </section>
+
+      <section style="background:var(--dl-surface);border:1px solid var(--dl-line);border-radius:14px;padding:6px 22px;box-shadow:var(--dl-shadow)">
+        <div style="padding:16px 0;border-bottom:1px solid var(--dl-line)">
+          <div style="font-size:11px;letter-spacing:.12em;color:var(--dl-ink-3);font-weight:700">データ</div>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 0;border-bottom:1px solid var(--dl-line)">
+          <div>
+            <div style="font-size:14px">保存先</div>
+            <div style="font-family:var(--dl-font-mono);font-size:12px;color:var(--dl-ink-3)">data/daylog.db · 4.2 MB</div>
+          </div>
+          <button style="padding:6px 14px;background:transparent;border:1px solid var(--dl-line);border-radius:8px;font-size:13px;cursor:pointer;color:var(--dl-ink-2)">開く</button>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 0">
+          <div>
+            <div style="font-size:14px">バックアップ</div>
+            <div style="font-size:12px;color:var(--dl-ink-3)">1日1回 · 最終 2026/09/01 08:12 · 30世代保持</div>
+          </div>
+          <button style="padding:6px 14px;background:var(--dl-surface-2);border:1px solid var(--dl-line);border-radius:8px;font-size:13px;cursor:pointer">今すぐ実行</button>
+        </div>
+      </section>
+      <div style="margin-top:18px;font-size:11.5px;color:var(--dl-ink-3);text-align:center">すべてのデータはこのPC内にのみ保存されます。外部への送信は行いません。</div>
+    </div>
+  </main>
+  </sc-if>
+
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;layout&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;1カラム&quot;,&quot;2カラム&quot;],&quot;default&quot;:&quot;1カラム&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;レイアウト&quot;},&quot;aiEnabled&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;機能&quot;}}">
+const SEED_TASKS = [
+  { id: 1, title: "朝会に出る", done: true },
+  { id: 2, title: "SQLite WAL の再現条件を特定する", done: true },
+  { id: 3, title: "仕様書 8章（メモ表示モード）を調整", done: false },
+  { id: 4, title: "UI草案のレビュー依頼を出す", done: false, carried: true },
+  { id: 5, title: "GGUF モデルを 3B に差し替えて速度計測", done: false }
+];
+
+const SEED_ENTRIES = [
+  { id: 1, time: "09:18", type: "会話", title: "朝会", body: "進捗共有。レビュー依頼は今日中に出すと宣言した。" },
+  { id: 2, time: "10:42", type: "完了", title: "バグ原因判明", body: "WAL ではなく UI 側のキャッシュだった。再現条件を特定。" },
+  { id: 3, time: "13:24", type: "アイデア", title: "記録の折りたたみ", body: "時間軸を保ったまま午前／午後で畳めると、1日が俯瞰しやすい。" },
+  { id: 4, time: "15:07", type: "メモ", title: "モデル差し替え", body: "3B Instruct に変更。要約が体感で倍くらい速い。" },
+  { id: 5, time: "17:40", type: "問題", title: "レビュー依頼が出せていない", body: "仕様書の調整が終わらず、宣言した分だけ気になっている。" }
+];
+
+const SEED_NOTE = `# 気づき
+
+- 画面は増やすより、**今日だけ**に集中させたほうが続く
+- バグ修正は午前中のほうが明らかに早い
+
+## 明日の候補
+
+- [ ] 仕様書 8章を書き直す
+- [x] 原因調査
+- [ ] \`llama.cpp\` の起動時ロードを遅延させる
+
+> AIは会話相手ではなく、書いたものを整理する係。
+
+**メモ:** レビュー依頼を忘れない`;
+
+const PAST = {
+  "2026-08-14": { title: "SQLite の調査", summary: "WAL モードの挙動を一日かけて確認した日。共有フォルダでの制約も把握できた。",
+    note: "# WAL メモ\n\n- チェックポイントは自動任せで問題なさそう\n- ただし `journal_mode` を切り替えるタイミングは注意\n\n> 疑うのは DB ではなく、まず自分のコード。",
+    review: [["よかったこと", "実機で確かめてから判断できた。"], ["持ち越し", "共有フォルダ構成の検証。"]], entries: [
+    { time: "10:05", type: "メモ", title: "WAL の調査", body: "チェックポイントの挙動を実機で確認。" },
+    { time: "14:30", type: "決定事項", title: "共有フォルダ検証", body: "ネットワーク越しの SQLite は避ける方針に。" }
+  ]},
+  "2026-08-28": { title: "UI 仕様の確定", summary: "1カラム構成で行くと決めた日。迷いが減った。",
+    note: "## 決めたこと\n\n- [x] サイドバーは持たない\n- [x] カードは4枚まで\n- [ ] 2カラムは設定で選べるようにする\n\n**基準:** 迷ったら「今日」に必要かで切る。",
+    review: [["よかったこと", "作らないものを決められた。"], ["持ち越し", "履歴画面の情報量の調整。"]], entries: [
+    { time: "11:12", type: "決定事項", title: "サイドバー廃止", body: "常設サイドバーをやめ、上部メニューに集約。" },
+    { time: "16:44", type: "決定事項", title: "カード4枚に決定", body: "やること／記録／メモ／振り返り。" }
+  ]},
+  "2026-08-21": { title: "共有フォルダの検証", summary: "ネットワーク越しの SQLite は使わない方針を固めた。ここから記録が途切れなくなった。",
+    note: "- ネットワーク越しのロックは信用しない\n- DB は `data/daylog.db` にローカル固定\n- 同期はやるとしても後回し",
+    review: [["よかったこと", "早い段階で無理な構成を捨てられた。"], ["持ち越し", "バックアップ世代数の決定。"]], entries: [
+    { time: "09:40", type: "問題", title: "ロックの挙動を確認", body: "共有フォルダ上では書き込みが詰まる。" },
+    { time: "15:18", type: "決定事項", title: "方針決定", body: "DB はローカル固定、同期は将来の課題に。" }
+  ]},
+  "2026-08-25": { title: "量子化の比較", summary: "GGUF の量子化違いを比較。Q4 で十分という結論。",
+    note: "## 計測\n\n- Q4 … 速い。要約の質も実用範囲\n- Q5 … わずかに良いが体感しにくい\n- Q8 … 遅い\n\n結論：`Q4_K_M` を既定にする。",
+    review: [["よかったこと", "数字を見て決められた。"], ["持ち越し", "起動時のモデルロードを遅延させる。"]], entries: [
+    { time: "11:02", type: "メモ", title: "Q4 / Q5 / Q8 を計測", body: "要約品質の差は体感では小さい。" },
+    { time: "14:55", type: "決定事項", title: "Q4 に決定", body: "起動と生成の速さを優先する。" }
+  ]},
+  "2026-08-31": { title: "月末の整理", summary: "8月の記録を読み返し、仕様書に反映した。続けられている実感がある。",
+    note: "# 8月を読み返して\n\n- 同じ悩みを3回書いていた → それはもう課題として切り出す\n- 記録が途切れた日は、たいてい前日に振り返りを書いていない\n\n## 9月の方針\n\n- [ ] 初期リリース範囲を絞る\n- [ ] 履歴画面を作り込む",
+    review: [["よかったこと", "1か月分を通して読む時間を取れた。"], ["持ち越し", "9月の実装順の確定。"]], entries: [
+    { time: "10:11", type: "メモ", title: "8月の記録を通読", body: "同じ悩みを3回書いていた。" },
+    { time: "17:30", type: "完了", title: "仕様書に反映", body: "初期リリース範囲を絞る。" }
+  ]},
+  "2026-09-01": { title: "バグ調査と新しいUI案", summary: "バグ調査で原因を特定でき、午後の作業を順調に進められた一日。新しいUIのアイデアも生まれた。仕様書の調整とレビュー依頼は明日に持ち越し。", entries: [
+    { time: "09:18", type: "会話", title: "朝会", body: "進捗共有。" },
+    { time: "10:42", type: "完了", title: "バグ原因判明", body: "UI側のキャッシュだった。" },
+    { time: "13:24", type: "アイデア", title: "記録の折りたたみ", body: "新しいUI案。" }
+  ], note: SEED_NOTE, review: [["よかったこと", "原因の切り分けを、思い込みではなくログから始められた。"], ["持ち越し", "仕様書 8章の調整とレビュー依頼。"]] }
+};
+
+const MONTHS = {
+  "2026-08": {
+    label: "2026年8月", days: 31, offset: 6,
+    counts: { 3: 4, 5: 2, 7: 5, 12: 3, 14: 6, 18: 4, 19: 2, 20: 5, 21: 3, 22: 1, 24: 4, 25: 6, 26: 3, 27: 2, 28: 4, 29: 1, 30: 3, 31: 5 }
+  },
+  "2026-09": { label: "2026年9月", days: 30, offset: 2, counts: { 1: 5 } }
+};
+
+const GENERIC_DAY = {
+  title: "いつもの一日",
+  summary: "細かな作業と記録が積み重なった一日。大きな出来事はないが、手は止まっていない。",
+  entries: [
+    { time: "10:20", type: "完了", title: "作業ログ", body: "細かい修正をまとめて片付けた。" },
+    { time: "16:05", type: "メモ", title: "気づき", body: "気になった点を書き留めておく。" }
+  ],
+  note: "- 小さい修正を溜めない\n- 迷ったら**書いてから**決める",
+  review: [["よかったこと", "手を止めずに進められた。"], ["持ち越し", "溜まっている確認作業。"]]
+};
+
+const CORPUS = [
+  { date: "2026/08/14", source: "今日の記録", text: "SQLite の WAL モードについて調査。チェックポイントの挙動を実機で確認した。" },
+  { date: "2026/08/21", source: "今日のメモ", text: "共有フォルダで SQLite を利用する際の注意点。ネットワーク越しのロックは信用しない。" },
+  { date: "2026/08/28", source: "振り返り", text: "UI を1カラムに確定。SQLite 側は触らず、表示の問題として切り分けた。" },
+  { date: "2026/09/01", source: "今日の記録", text: "SQLite が原因と思ったが UI 側のキャッシュだった。再現条件を特定。" },
+  { date: "2026/08/19", source: "AIまとめ", text: "llama.cpp のモデル差し替え検証と、仕様書の構成整理が中心の一日。" },
+  { date: "2026/08/25", source: "今日やること", text: "GGUF モデルの量子化違いを比較する（完了）" }
+];
+
+const AI_SUMMARY = "バグ調査で原因を特定でき、午後の作業を順調に進めることができた一日でした。記録の折りたたみという新しいUIのアイデアも生まれています。仕様書の細かな調整とレビュー依頼については明日に持ち越しています。";
+const AI_LINES = ["原因特定：WAL ではなく UI 側のキャッシュ", "新しいアイデア：時間軸を保ったまま折りたためる記録", "持ち越し：仕様書 8章の調整とレビュー依頼"];
+
+const THEMES = [
+  { id: "light", label: "紙" },
+  { id: "mist", label: "霧" },
+  { id: "fluent", label: "流" },
+  { id: "dark", label: "墨" }
+];
+
+const MODES = ["軽量", "標準", "高品質"];
+const TYPES = ["メモ", "アイデア", "完了", "問題", "会話", "決定事項"];
+
+function esc(s) { return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+
+function inline(s) {
+  return esc(s)
+    .replace(/`([^`]+)`/g, "<code>$1</code>")
+    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/(^|[^*])\*([^*]+)\*/g, "$1<em>$2</em>");
+}
+
+function md(src) {
+  const lines = (src || "").split("\n");
+  let out = "", list = null;
+  const closeList = () => { if (list) { out += "</" + list + ">"; list = null; } };
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!line) { closeList(); continue; }
+    let m;
+    if ((m = line.match(/^(#{1,3})\s+(.*)$/))) { closeList(); const n = m[1].length; out += "<h" + n + ">" + inline(m[2]) + "</h" + n + ">"; continue; }
+    if ((m = line.match(/^>\s?(.*)$/))) { closeList(); out += "<blockquote>" + inline(m[1]) + "</blockquote>"; continue; }
+    if ((m = line.match(/^[-*]\s+\[([ xX])\]\s+(.*)$/))) {
+      if (list !== "ul") { closeList(); out += "<ul>"; list = "ul"; }
+      const on = m[1].toLowerCase() === "x";
+      out += '<li class="dl-check"><span style="color:var(--dl-accent);font-family:var(--dl-font-mono)">' + (on ? "☑" : "☐") + '</span> <span' + (on ? ' style="opacity:.55;text-decoration:line-through"' : "") + ">" + inline(m[2]) + "</span></li>";
+      continue;
+    }
+    if ((m = line.match(/^[-*]\s+(.*)$/))) { if (list !== "ul") { closeList(); out += "<ul>"; list = "ul"; } out += "<li>" + inline(m[1]) + "</li>"; continue; }
+    if ((m = line.match(/^\d+\.\s+(.*)$/))) { if (list !== "ol") { closeList(); out += "<ol>"; list = "ol"; } out += "<li>" + inline(m[1]) + "</li>"; continue; }
+    closeList();
+    out += "<p>" + inline(line) + "</p>";
+  }
+  closeList();
+  return out;
+}
+
+const seg = (on) => "padding:5px 12px;border:none;border-radius:6px;font-size:12px;cursor:pointer;transition:all .15s;" +
+  (on ? "background:var(--dl-surface);color:var(--dl-ink);box-shadow:0 1px 2px rgba(0,0,0,.08);font-weight:500" : "background:transparent;color:var(--dl-ink-3)");
+
+const nav = (on) => "padding:6px 12px;background:transparent;border:none;border-radius:8px;font-size:13px;cursor:pointer;transition:color .15s;" +
+  (on ? "color:var(--dl-ink);font-weight:700" : "color:var(--dl-ink-3)");
+
+class Component extends DCLogic {
+  state = {
+    theme: "light", screen: "today", layout: this.props.layout || "1カラム",
+    tasks: SEED_TASKS, entries: SEED_ENTRIES, note: SEED_NOTE, noteMode: "edit",
+    taskDraft: "", entryDraft: "", entryType: null,
+    reviewOpen: true, good: "原因の切り分けを、思い込みではなくログから始められた。", bad: "", tomorrow: "",
+    ai: null, aiLoading: false, aiEnabled: this.props.aiEnabled !== false,
+    closed: false, query: "SQLite", selected: "2026-09-01", month: "2026-09",
+    pastEdits: {}, editingPast: false, pastSaved: "",
+    firstRun: false, mode: "標準", saved: "自動保存済み · 17:52"
+  };
+
+  taskInputRef = React.createRef();
+  entryInputRef = React.createRef();
+  noteRef = React.createRef();
+  reviewRef = React.createRef();
+  searchRef = React.createRef();
+
+  componentDidMount() {
+    this.onKey = (e) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      const k = e.key.toLowerCase();
+      if (k === "t") { e.preventDefault(); this.setState({ screen: "today" }, () => this.taskInputRef.current && this.taskInputRef.current.focus()); }
+      else if (k === "enter") { e.preventDefault(); this.setState({ screen: "today" }, () => { if (this.state.entryDraft.trim()) this.addEntry(); else this.entryInputRef.current && this.entryInputRef.current.focus(); }); }
+      else if (k === "m") { e.preventDefault(); this.setState({ screen: "today", noteMode: "edit" }, () => this.noteRef.current && this.noteRef.current.focus()); }
+      else if (k === "r") { e.preventDefault(); this.setState({ screen: "today", reviewOpen: true }); }
+      else if (k === "f") { e.preventDefault(); this.setState({ screen: "search" }, () => this.searchRef.current && this.searchRef.current.focus()); }
+    };
+    window.addEventListener("keydown", this.onKey);
+  }
+  componentWillUnmount() { window.removeEventListener("keydown", this.onKey); }
+
+  touch() { this.setState({ saved: "保存中…" }); clearTimeout(this._t); this._t = setTimeout(() => this.setState({ saved: "自動保存済み · たった今" }), 700); }
+
+  addTask() {
+    const t = this.state.taskDraft.trim();
+    if (!t) return;
+    this.setState(s => ({ tasks: s.tasks.concat({ id: Date.now(), title: t, done: false }), taskDraft: "" }));
+    this.touch();
+  }
+  addEntry() {
+    const t = this.state.entryDraft.trim();
+    if (!t) return;
+    const d = new Date();
+    const time = String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+    const parts = t.split(/[。\n]/);
+    const title = parts[0].length > 26 ? parts[0].slice(0, 26) + "…" : parts[0];
+    const body = t.length > title.length ? t.slice(title.length).replace(/^[。\s]+/, "") : "";
+    this.setState(s => ({ entries: s.entries.concat({ id: Date.now(), time, type: s.entryType, title, body }), entryDraft: "", entryType: null }));
+    this.touch();
+  }
+  runAi() {
+    this.setState({ ai: null, aiLoading: true });
+    clearTimeout(this._ai);
+    this._ai = setTimeout(() => this.setState({ ai: AI_SUMMARY, aiLoading: false }), 1500);
+  }
+
+  calendar() {
+    const m = MONTHS[this.state.month];
+    const cells = [];
+    for (let i = 0; i < m.offset; i++) cells.push({ label: "", style: "height:38px;border:none;background:transparent" });
+    for (let d = 1; d <= m.days; d++) {
+      const c = m.counts[d] || 0;
+      const future = this.state.month === "2026-09" && d > 1;
+      const key = this.state.month + "-" + String(d).padStart(2, "0");
+      const sel = this.state.selected === key;
+      const op = c === 0 ? 0 : c < 3 ? 0.28 : c < 5 ? 0.6 : 1;
+      const bg = c === 0 ? (future ? "transparent" : "var(--dl-surface-2)") : "color-mix(in oklab, var(--dl-accent) " + Math.round(op * 100) + "%, var(--dl-surface))";
+      cells.push({
+        label: String(d),
+        style: "height:38px;display:flex;align-items:center;justify-content:center;border-radius:8px;font-family:var(--dl-font-mono);font-size:12px;cursor:pointer;transition:all .15s;background:" + bg +
+          ";color:" + (c >= 5 ? "var(--dl-surface)" : future ? "var(--dl-ink-3)" : "var(--dl-ink-2)") +
+          ";border:1px solid " + (sel ? "var(--dl-ink)" : "transparent"),
+        pick: () => this.setState({ selected: key })
+      });
+    }
+    return cells;
+  }
+
+  renderVals() {
+    const s = this.state;
+    const first = s.firstRun;
+    const tasks = first ? [] : s.tasks;
+    const entries = first ? [] : s.entries;
+    const done = tasks.filter(t => t.done).length;
+    const now = new Date();
+    const nowTime = String(now.getHours()).padStart(2, "0") + ":" + String(now.getMinutes()).padStart(2, "0");
+    const two = s.layout === "2カラム";
+    const noteText = first ? "" : s.note;
+    const selMonth = MONTHS[s.selected.slice(0, 7)];
+    const selDay = parseInt(s.selected.slice(8), 10);
+    const hasRecord = !!(selMonth && selMonth.counts[selDay]);
+    const base = PAST[s.selected] ? { ...GENERIC_DAY, ...PAST[s.selected] } : (hasRecord ? GENERIC_DAY : null);
+    const sel = base ? { ...base, ...(s.pastEdits[s.selected] || {}) } : null;
+    const editingPast = s.editingPast && !!sel;
+    const patchPast = (patch) => this.setState(p => ({
+      pastEdits: { ...p.pastEdits, [p.selected]: { ...(p.pastEdits[p.selected] || {}), ...patch } },
+      pastSaved: "保存しました · たった今"
+    }), () => this.forceUpdate());
+    const monthDef = MONTHS[s.month];
+    const monthDays = Object.keys(monthDef.counts).length;
+    const q = s.query.trim().toLowerCase();
+    const results = q ? CORPUS.filter(r => r.text.toLowerCase().includes(q) || r.source.includes(q)) : CORPUS;
+
+    return {
+      theme: s.theme,
+      themeLabel: THEMES[(THEMES.findIndex(t => t.id === s.theme) + 1) % THEMES.length].label,
+      themeName: (THEMES.find(t => t.id === s.theme) || THEMES[0]).label,
+      toggleTheme: () => this.setState(p => ({ theme: THEMES[(THEMES.findIndex(t => t.id === p.theme) + 1) % THEMES.length].id })),
+      themeOptions: THEMES.map(t => ({ label: t.label, style: seg(s.theme === t.id), pick: () => this.setState({ theme: t.id }) })),
+
+      isToday: s.screen === "today", isHistory: s.screen === "history", isSearch: s.screen === "search", isSettings: s.screen === "settings",
+      goToday: () => this.setState({ screen: "today" }), goHistory: () => this.setState({ screen: "history" }),
+      goSearch: () => this.setState({ screen: "search" }), goSettings: () => this.setState({ screen: "settings" }),
+      navTodayStyle: nav(s.screen === "today"), navHistoryStyle: nav(s.screen === "history"),
+      navSearchStyle: nav(s.screen === "search"), navSettingsStyle: nav(s.screen === "settings"),
+
+      setLayoutA: () => this.setState({ layout: "1カラム" }), setLayoutB: () => this.setState({ layout: "2カラム" }),
+      layoutAStyle: seg(!two), layoutBStyle: seg(two),
+      pageWidthStyle: two ? "max-width:1180px;margin:0 auto" : "max-width:720px;margin:0 auto",
+      wrapperStyle: two ? "display:grid;grid-template-columns:1.06fr 1fr;gap:18px;align-items:start" : "display:flex;flex-direction:column;gap:18px",
+      groupStyle: two ? "display:flex;flex-direction:column;gap:18px" : "display:contents",
+
+      headerDate: "2026/09/01 (火)",
+      fullDate: "2026年9月1日（火）",
+      greeting: first ? "はじめまして。" : now.getHours() < 11 ? "おはようございます" : now.getHours() < 18 ? "今日はどうですか" : "おつかれさまでした",
+      streakLine: first ? "今日から、1日ずつ記録していきます。まずは今日やることを1つだけ。" : "12日連続で記録中 · 今日の記録 " + entries.length + " 件",
+
+      tasks: tasks.map(t => ({
+        title: t.title, carried: !!t.carried, mark: t.done ? "✓" : "",
+        boxStyle: "flex:none;width:18px;height:18px;margin-top:2px;display:flex;align-items:center;justify-content:center;border-radius:5px;font-size:11px;cursor:pointer;transition:all .15s;" +
+          (t.done ? "background:var(--dl-accent);border:1px solid var(--dl-accent);color:var(--dl-surface)" : "background:transparent;border:1px solid var(--dl-line-2);color:transparent"),
+        titleStyle: "font-size:14px;line-height:1.5;text-wrap:pretty;" + (t.done ? "color:var(--dl-ink-3);text-decoration:line-through" : "color:var(--dl-ink)"),
+        toggle: () => { this.setState(p => ({ tasks: p.tasks.map(x => x.id === t.id ? { ...x, done: !x.done } : x) })); this.touch(); }
+      })),
+      noTasks: tasks.length === 0,
+      taskProgress: done + " / " + tasks.length,
+      taskDraft: s.taskDraft,
+      taskInputRef: this.taskInputRef,
+      onTaskDraft: (e) => this.setState({ taskDraft: e.target.value }),
+      onTaskKey: (e) => { if (e.key === "Enter") { e.preventDefault(); this.addTask(); } },
+
+      entries: entries.map(e => {
+        const i = TYPES.indexOf(e.type);
+        const next = i < 0 ? TYPES[0] : (i === TYPES.length - 1 ? null : TYPES[i + 1]);
+        return {
+          time: e.time, title: e.title, body: e.body,
+          type: e.type || "＋ タグ",
+          typeStyle: "padding:1px 9px;border:1px solid transparent;border-radius:20px;font-size:10.5px;letter-spacing:.04em;cursor:pointer;transition:all .15s;" +
+            (e.type ? "background:var(--dl-accent-soft);color:var(--dl-accent-ink)" : "background:transparent;border-color:var(--dl-line);color:var(--dl-ink-3)"),
+          cycleType: () => { this.setState(p => ({ entries: p.entries.map(x => x.id === e.id ? { ...x, type: next } : x) })); this.touch(); }
+        };
+      }),
+      noEntries: entries.length === 0,
+      entryCount: entries.length + " 件",
+      nowTime,
+      entryDraft: s.entryDraft,
+      entryInputRef: this.entryInputRef,
+      onEntryDraft: (e) => this.setState({ entryDraft: e.target.value }),
+      onEntryKey: (e) => { if (e.key === "Enter") { e.preventDefault(); this.addEntry(); } },
+      typeChips: TYPES.map(t => ({
+        label: t,
+        style: "padding:3px 11px;border-radius:20px;font-size:11px;cursor:pointer;transition:all .15s;" +
+          (s.entryType === t ? "background:var(--dl-accent);border:1px solid var(--dl-accent);color:var(--dl-surface)" : "background:transparent;border:1px solid var(--dl-line);color:var(--dl-ink-3)"),
+        pick: () => this.setState(p => ({ entryType: p.entryType === t ? null : t }))
+      })),
+
+      isEditMode: s.noteMode === "edit", isViewMode: s.noteMode === "view",
+      setEdit: () => this.setState({ noteMode: "edit" }), setView: () => this.setState({ noteMode: "view" }),
+      editModeStyle: seg(s.noteMode === "edit"), viewModeStyle: seg(s.noteMode === "view"),
+      note: noteText, noteRef: this.noteRef,
+      onNote: (e) => { this.setState({ note: e.target.value }); this.touch(); },
+      noteRendered: React.createElement("div", { className: "dl-md", dangerouslySetInnerHTML: { __html: md(noteText) } }),
+      saveState: s.saved,
+
+      reviewOpen: s.reviewOpen, reviewRef: this.reviewRef,
+      toggleReview: () => this.setState(p => ({ reviewOpen: !p.reviewOpen })),
+      chevronStyle: "font-size:12px;color:var(--dl-ink-3);transition:transform .2s;display:inline-block;transform:rotate(" + (s.reviewOpen ? "0" : "-90") + "deg)",
+      reviewHint: s.reviewOpen ? "" : "Ctrl+R",
+      reviewGood: first ? "" : s.good, reviewBad: s.bad, reviewTomorrow: s.tomorrow,
+      onGood: (e) => { this.setState({ good: e.target.value }); this.touch(); },
+      onBad: (e) => { this.setState({ bad: e.target.value }); this.touch(); },
+      onTomorrow: (e) => { this.setState({ tomorrow: e.target.value }); this.touch(); },
+
+      aiEnabled: s.aiEnabled,
+      noAi: !s.ai && !s.aiLoading, aiLoading: s.aiLoading, hasAi: !!s.ai,
+      aiSummary: s.ai, aiLines: AI_LINES,
+      runAi: () => this.runAi(),
+
+      isClosed: s.closed,
+      closeHint: s.closed ? "完了済み" : "書き終えたら、今日を閉じる",
+      closeBtnLabel: s.closed ? "完了しました" : "今日を完了",
+      closeBtnStyle: "padding:9px 22px;border-radius:9px;font-size:13.5px;cursor:pointer;transition:all .15s;border:1px solid var(--dl-accent);" +
+        (s.closed ? "background:transparent;color:var(--dl-ink-3);border-color:var(--dl-line)" : "background:var(--dl-accent);color:var(--dl-surface)"),
+      closeDay: () => this.setState({ closed: true }),
+      reopenDay: () => this.setState({ closed: false }),
+
+      weekdays: ["日", "月", "火", "水", "木", "金", "土"],
+      calendarCells: this.calendar(),
+      monthLabel: monthDef.label,
+      monthDayCount: String(monthDays),
+      monthDayLabel: s.month === "2026-09" ? "9月の記録日数" : "8月の記録日数",
+      prevMonth: () => this.setState({ month: "2026-08" }),
+      nextMonth: () => this.setState({ month: "2026-09" }),
+      prevDisabled: s.month === "2026-08" ? "opacity:.25;pointer-events:none;" : "",
+      navPrevStyle: "width:26px;height:26px;display:flex;align-items:center;justify-content:center;background:transparent;border:1px solid var(--dl-line);border-radius:7px;font-size:11px;color:var(--dl-ink-2);cursor:pointer;" + (s.month === "2026-08" ? "opacity:.3;pointer-events:none" : ""),
+      navNextStyle: "width:26px;height:26px;display:flex;align-items:center;justify-content:center;background:transparent;border:1px solid var(--dl-line);border-radius:7px;font-size:11px;color:var(--dl-ink-2);cursor:pointer;" + (s.month === "2026-09" ? "opacity:.3;pointer-events:none" : ""),
+      selectedDate: s.selected.replace(/-/g, " / "),
+      selectedTitle: sel ? sel.title : "記録なし",
+      selectedHasData: !!sel, selectedEmpty: !sel,
+      selectedEntries: sel ? sel.entries.map((e, i) => {
+        const patchEntry = (patch) => patchPast({ entries: sel.entries.map((x, j) => j === i ? { ...x, ...patch } : x) });
+        return {
+          time: e.time, title: e.title, body: e.body || "", type: e.type || null,
+          typeStyle: "padding:1px 9px;border-radius:20px;font-size:10.5px;letter-spacing:.04em;background:var(--dl-accent-soft);color:var(--dl-accent-ink)",
+          typeChipRow: React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: "5px" } },
+            TYPES.map(t => React.createElement("button", {
+              key: t,
+              onClick: () => patchEntry({ type: e.type === t ? null : t }),
+              style: {
+                padding: "2px 9px", borderRadius: "20px", fontSize: "10.5px", cursor: "pointer", transition: "all .15s",
+                background: e.type === t ? "var(--dl-accent)" : "transparent",
+                border: "1px solid " + (e.type === t ? "var(--dl-accent)" : "var(--dl-line)"),
+                color: e.type === t ? "var(--dl-surface)" : "var(--dl-ink-3)"
+              }
+            }, t))
+          ),
+          onTime: (ev) => patchEntry({ time: ev.target.value }),
+          onTitle: (ev) => patchEntry({ title: ev.target.value }),
+          onBody: (ev) => patchEntry({ body: ev.target.value }),
+          remove: () => patchPast({ entries: sel.entries.filter((x, j) => j !== i) })
+        };
+      }) : [],
+      addPastEntry: () => patchPast({ entries: sel.entries.concat({ time: "12:00", title: "新しい記録", body: "" }) }),
+      selectedSummary: sel ? sel.summary : "",
+      selectedHasNote: !!(sel && sel.note),
+      selectedNote: sel && sel.note ? React.createElement("div", { className: "dl-md", dangerouslySetInnerHTML: { __html: md(sel.note) } }) : null,
+      selectedNoteRaw: sel ? (sel.note || "") : "",
+      selectedReview: sel && sel.review ? sel.review.map((r, i) => ({
+        label: r[0], text: r[1],
+        onChange: (e) => {
+          const v = e.target.value;
+          const next = sel.review.map((x, j) => j === i ? [x[0], v] : x);
+          patchPast({ review: next });
+        }
+      })) : [],
+      selectedHasReview: !!(sel && sel.review),
+      selectedEdited: !!s.pastEdits[s.selected],
+      editingPast, notEditingPast: !editingPast,
+      pastEditLabel: editingPast ? "編集を終える" : "再編集",
+      pastEditStyle: "padding:4px 12px;border-radius:8px;font-size:12px;cursor:pointer;transition:all .15s;" +
+        (editingPast ? "background:var(--dl-accent);border:1px solid var(--dl-accent);color:var(--dl-surface)" : "background:transparent;border:1px solid var(--dl-line);color:var(--dl-ink-2)"),
+      toggleEditPast: () => this.setState(p => ({ editingPast: !p.editingPast })),
+      onPastNote: (e) => patchPast({ note: e.target.value }),
+      pastSaved: s.pastEdits[s.selected] ? (s.pastSaved || "編集済み") : "",
+      pastEditHint: editingPast ? "編集内容は自動保存されます" : "",
+
+      query: s.query, searchRef: this.searchRef,
+      onQuery: (e) => this.setState({ query: e.target.value }),
+      results, noResults: results.length === 0,
+      resultCount: results.length + " 件",
+
+      toggleAi: () => this.setState(p => ({ aiEnabled: !p.aiEnabled })),
+      aiToggleStyle: "width:44px;height:25px;padding:3px;display:flex;align-items:center;border:none;border-radius:20px;cursor:pointer;transition:all .2s;justify-content:" + (s.aiEnabled ? "flex-end" : "flex-start") + ";background:" + (s.aiEnabled ? "var(--dl-accent)" : "var(--dl-line-2)"),
+      aiKnobStyle: "width:19px;height:19px;border-radius:50%;background:var(--dl-surface);display:block;box-shadow:0 1px 3px rgba(0,0,0,.25)",
+      toggleFirstRun: () => this.setState(p => ({ firstRun: !p.firstRun })),
+      firstRunToggleStyle: "width:44px;height:25px;padding:3px;display:flex;align-items:center;border:none;border-radius:20px;cursor:pointer;transition:all .2s;justify-content:" + (s.firstRun ? "flex-end" : "flex-start") + ";background:" + (s.firstRun ? "var(--dl-accent)" : "var(--dl-line-2)"),
+      firstRunKnobStyle: "width:19px;height:19px;border-radius:50%;background:var(--dl-surface);display:block;box-shadow:0 1px 3px rgba(0,0,0,.25)",
+      inferModes: MODES.map(m => ({ label: m, style: seg(s.mode === m), pick: () => this.setState({ mode: m }) }))
+    };
+  }
+}
+
+</script>
+</body>
+</html>
