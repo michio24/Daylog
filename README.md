@@ -33,6 +33,13 @@ cmake --build ai/build --config Release
 
 データは実行ファイルと同じ場所（開発時はプロジェクト直下）の `data/`、`backups/`、`logs/`、`models/` に保存されます。
 
+**llama-cli.exe**
+https://github.com/ggml-org/llama.cpp/releases
+
+**models**
+https://huggingface.co/unsloth/Qwen3.5-4B-GGUF
+
+
 ## 祝日CSV
 
 国民の祝日は `data/japanese_holidays.csv` から読み込みます。ファイルは初回起動時に生成され、UTF-8で1行につき `YYYY-MM-DD,名称` の形式です。日付には `YYYY/M/D` も使用でき、先頭行には `date,name` または内閣府CSVの見出しを配置できます。空行と `#` で始まる行は無視されます。
