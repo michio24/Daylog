@@ -11,7 +11,7 @@ const tasks: Task[] = [
   { id: 2, title: "次", isCompleted: false, sortOrder: 1, carriedOver: false, completedAt: null, dueAt: null }
 ];
 
-const setup = (items = tasks, disabled = false) => {
+const setup = (items = tasks, disabled = false, dayDate = "2026-09-05") => {
   const onTasksChange = vi.fn();
   const onAdd = vi.fn(async () => undefined);
   const onToggle = vi.fn(async () => undefined);
@@ -19,7 +19,7 @@ const setup = (items = tasks, disabled = false) => {
   const onDelete = vi.fn(async () => undefined);
   const onReorder = vi.fn(async (ids: number[]) => ids.map((id, sortOrder) => ({ ...items.find((task) => task.id === id)!, sortOrder })));
   const onError = vi.fn();
-  render(<TaskSection tasks={items} disabled={disabled} onTasksChange={onTasksChange} onAdd={onAdd} onToggle={onToggle} onUpdate={onUpdate} onDelete={onDelete} onReorder={onReorder} onError={onError}/>);
+  render(<TaskSection tasks={items} dayDate={dayDate} disabled={disabled} onTasksChange={onTasksChange} onAdd={onAdd} onToggle={onToggle} onUpdate={onUpdate} onDelete={onDelete} onReorder={onReorder} onError={onError}/>);
   return { onTasksChange, onAdd, onToggle, onUpdate, onDelete, onReorder, onError };
 };
 
@@ -36,10 +36,12 @@ afterEach(() => { cleanup(); vi.useRealTimers(); vi.unstubAllGlobals(); });
 
 describe("TaskSection", () => {
   it("edits the title and stores an optional local deadline as RFC 3339", async () => {
-    const { onUpdate } = setup();
+    const { onUpdate } = setup(tasks, false, "2026-09-06");
     fireEvent.click(screen.getByRole("button", { name: "最初を編集" }));
     fireEvent.change(screen.getByLabelText("タスク名"), { target: { value: " 更新後 " } });
-    fireEvent.change(screen.getByLabelText("期限"), { target: { value: "2026-09-06T18:30" } });
+    expect(screen.getByText("9月6日(日)の期限")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("期限の時"), { target: { value: "18" } });
+    fireEvent.change(screen.getByLabelText("期限の分"), { target: { value: "30" } });
     fireEvent.click(screen.getByRole("button", { name: "保存" }));
 
     await waitFor(() => expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({
@@ -51,8 +53,10 @@ describe("TaskSection", () => {
   it("clears a deadline, rejects an empty title, and cancels without saving", async () => {
     const { onUpdate } = setup([{ ...tasks[0], dueAt: "2026-09-06T18:30:00+09:00" }]);
     fireEvent.click(screen.getByRole("button", { name: "最初を編集" }));
-    expect((screen.getByLabelText("期限") as HTMLInputElement).value).toMatch(/^2026-09-06T/);
-    fireEvent.change(screen.getByLabelText("期限"), { target: { value: "" } });
+    expect(screen.getByLabelText("期限日")).toHaveValue("2026-09-06");
+    expect(screen.getByLabelText("期限の時")).toHaveValue("18");
+    expect(screen.getByLabelText("期限の分")).toHaveValue("30");
+    fireEvent.click(screen.getByRole("button", { name: "期限を解除" }));
     fireEvent.change(screen.getByLabelText("タスク名"), { target: { value: "  " } });
     fireEvent.click(screen.getByRole("button", { name: "保存" }));
     expect(screen.getByRole("alert")).toHaveTextContent("タスク名を入力してください");
@@ -65,6 +69,85 @@ describe("TaskSection", () => {
     fireEvent.change(screen.getByLabelText("タスク名"), { target: { value: "保存しない" } });
     fireEvent.click(screen.getByRole("button", { name: "キャンセル" }));
     expect(onUpdate).toHaveBeenCalledOnce();
+  });
+
+  it.each(["2025-01-02", "2026-09-06", "2027-12-31"])("uses the record date %s when only a time is entered", async (dayDate) => {
+    const { onUpdate } = setup(tasks, false, dayDate);
+    fireEvent.click(screen.getByRole("button", { name: "最初を編集" }));
+    fireEvent.change(screen.getByLabelText("期限の時"), { target: { value: "0" } });
+    fireEvent.blur(screen.getByLabelText("期限の時"));
+    fireEvent.change(screen.getByLabelText("期限の分"), { target: { value: "0" } });
+    fireEvent.blur(screen.getByLabelText("期限の分"));
+    expect(screen.getByLabelText("期限の時")).toHaveValue("00");
+    expect(screen.getByLabelText("期限の分")).toHaveValue("00");
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+    await waitFor(() => expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ dueAt: expect.stringMatching(new RegExp(`^${dayDate}T00:00:00[+-]\\d{2}:\\d{2}$`)) })));
+  });
+
+  it("changes the date without clearing the time and accepts 23:59", async () => {
+    const { onUpdate } = setup();
+    fireEvent.click(screen.getByRole("button", { name: "最初を編集" }));
+    fireEvent.change(screen.getByLabelText("期限の時"), { target: { value: "23" } });
+    fireEvent.change(screen.getByLabelText("期限の分"), { target: { value: "59" } });
+    fireEvent.click(screen.getByRole("button", { name: "日付を変更" }));
+    fireEvent.change(screen.getByLabelText("期限日"), { target: { value: "2026-09-07" } });
+    expect(screen.getByLabelText("期限の時")).toHaveValue("23");
+    expect(screen.getByLabelText("期限の分")).toHaveValue("59");
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+    await waitFor(() => expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ dueAt: expect.stringMatching(/^2026-09-07T23:59:00[+-]\d{2}:\d{2}$/) })));
+  });
+
+  it("shows every choice when a time already has a value", () => {
+    setup([{ ...tasks[0], dueAt: "2026-09-05T16:00:00+09:00" }]);
+    fireEvent.click(screen.getByRole("button", { name: "最初を編集" }));
+    fireEvent.focus(screen.getByLabelText("期限の時"));
+    expect(screen.getAllByRole("option")).toHaveLength(24);
+    expect(screen.getByRole("option", { name: "00" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "23" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("option", { name: "09" }));
+    expect(screen.getByLabelText("期限の時")).toHaveValue("09");
+
+    fireEvent.focus(screen.getByLabelText("期限の分"));
+    expect(screen.getAllByRole("option")).toHaveLength(60);
+    expect(screen.getByRole("option", { name: "59" })).toBeInTheDocument();
+  });
+
+  it("changes a time with the arrow keys without filtering its choices", () => {
+    setup([{ ...tasks[0], dueAt: "2026-09-05T16:00:00+09:00" }]);
+    fireEvent.click(screen.getByRole("button", { name: "最初を編集" }));
+    const hour = screen.getByLabelText("期限の時");
+    fireEvent.keyDown(hour, { key: "ArrowDown" });
+    expect(hour).toHaveValue("17");
+    expect(screen.getAllByRole("option")).toHaveLength(24);
+    fireEvent.keyDown(hour, { key: "ArrowUp" });
+    expect(hour).toHaveValue("16");
+  });
+
+  it("rejects incomplete and out-of-range times", () => {
+    const { onUpdate } = setup();
+    fireEvent.click(screen.getByRole("button", { name: "最初を編集" }));
+    fireEvent.change(screen.getByLabelText("期限の時"), { target: { value: "12" } });
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+    expect(screen.getByRole("alert")).toHaveTextContent("期限の時と分を両方入力してください");
+    fireEvent.change(screen.getByLabelText("期限の分"), { target: { value: "60" } });
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+    expect(screen.getByRole("alert")).toHaveTextContent("期限は00:00〜23:59の範囲で入力してください");
+    expect(onUpdate).not.toHaveBeenCalled();
+  });
+
+  it("keeps the editor values after a save failure and allows retry", async () => {
+    const { onUpdate, onError } = setup();
+    onUpdate.mockRejectedValueOnce(new Error("update failed"));
+    fireEvent.click(screen.getByRole("button", { name: "最初を編集" }));
+    fireEvent.change(screen.getByLabelText("期限の時"), { target: { value: "8" } });
+    fireEvent.change(screen.getByLabelText("期限の分"), { target: { value: "5" } });
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("保存できませんでした");
+    expect(screen.getByLabelText("期限の時")).toHaveValue("8");
+    expect(onError).toHaveBeenCalledWith(expect.stringContaining("update failed"));
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+    await waitFor(() => expect(onUpdate).toHaveBeenCalledTimes(2));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
   it("shows fire only for an overdue incomplete task and refreshes every 30 seconds", () => {

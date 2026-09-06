@@ -1,20 +1,20 @@
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { createPortal } from "react-dom";
 import type { Task } from "../types";
 
 interface Props {
-  tasks: Task[]; disabled: boolean; onTasksChange: (tasks: Task[]) => void;
+  tasks: Task[]; dayDate: string; disabled: boolean; onTasksChange: (tasks: Task[]) => void;
   onAdd: (title: string) => Promise<void>; onToggle: (task: Task) => Promise<void>;
   onUpdate: (task: Task) => Promise<Task>; onDelete: (id: number) => Promise<void>;
   onReorder: (orderedIds: number[]) => Promise<Task[]>; onError: (message: string) => void;
 }
 
 const pad = (value: number) => String(value).padStart(2, "0");
-const toLocalInput = (value?: string | null) => {
-  if (!value) return "";
+const toLocalParts = (value?: string | null) => {
+  if (!value) return null;
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  if (Number.isNaN(date.getTime())) return null;
+  return { date: `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`, hour: pad(date.getHours()), minute: pad(date.getMinutes()) };
 };
 const toRfc3339 = (value: string) => {
   if (!value) return null;
@@ -25,12 +25,64 @@ const toRfc3339 = (value: string) => {
   return `${value}:00${sign}${pad(Math.floor(absolute / 60))}:${pad(absolute % 60)}`;
 };
 const formatDueAt = (value: string) => new Intl.DateTimeFormat("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(value));
+const formatDueDate = (value: string) => {
+  const [year, month, day] = value.split("-").map(Number);
+  if (!year || !month || !day) return value;
+  return new Intl.DateTimeFormat("ja-JP", { month: "long", day: "numeric", weekday: "short" }).format(new Date(year, month - 1, day, 12));
+};
+const normalizeTimePart = (value: string, max: number) => {
+  if (!/^\d{1,2}$/.test(value)) return value;
+  const number = Number(value);
+  return number <= max ? pad(number) : value;
+};
+const timePartIsValid = (value: string, max: number) => /^\d{1,2}$/.test(value) && Number(value) <= max;
+const hourOptions = Array.from({ length: 24 }, (_, index) => pad(index));
+const minuteOptions = Array.from({ length: 60 }, (_, index) => pad(index));
 
-export function TaskSection({ tasks, disabled, onTasksChange, onAdd, onToggle, onUpdate, onDelete, onReorder, onError }: Props) {
+interface TimePartInputProps {
+  label: string; value: string; max: number; options: string[]; disabled: boolean; onChange: (value: string) => void;
+}
+
+function TimePartInput({ label, value, max, options, disabled, onChange }: TimePartInputProps) {
+  const [open, setOpen] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const selectedOption = useRef<HTMLButtonElement>(null);
+  const listId = `task-due-${label === "時" ? "hours" : "minutes"}`;
+
+  useEffect(() => {
+    if (open) selectedOption.current?.scrollIntoView?.({ block: "nearest" });
+  }, [open]);
+
+  const onKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); setOpen(false); return; }
+    if (event.key === "Enter") { event.preventDefault(); setOpen(false); return; }
+    if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+    event.preventDefault();
+    const current = timePartIsValid(value, max) ? Number(value) : 0;
+    const next = event.key === "ArrowDown" ? (current + 1) % (max + 1) : (current + max) % (max + 1);
+    onChange(pad(next)); setOpen(true);
+  };
+
+  return <div className="task-time-part">
+    <label htmlFor={`${listId}-input`}>{label}</label>
+    <div className="task-time-control">
+      <input ref={inputRef} id={`${listId}-input`} type="text" inputMode="numeric" maxLength={2} role="combobox" aria-label={`期限の${label}`} aria-expanded={open} aria-controls={listId} placeholder="--" value={value} disabled={disabled} onFocus={() => setOpen(true)} onChange={(event) => { onChange(event.target.value); setOpen(true); }} onKeyDown={onKeyDown} onBlur={() => { onChange(normalizeTimePart(value, max)); setOpen(false); }}/>
+      <button type="button" tabIndex={-1} aria-label={`${label}の候補を表示`} aria-expanded={open} disabled={disabled} onMouseDown={(event) => event.preventDefault()} onClick={() => { inputRef.current?.focus(); setOpen(true); }}>▼</button>
+    </div>
+    {open && <div id={listId} className="task-time-options" role="listbox" aria-label={`${label}の候補`}>
+      {options.map((option) => <button type="button" role="option" aria-selected={value === option} className={value === option ? "selected" : ""} ref={value === option ? selectedOption : undefined} tabIndex={-1} key={option} onMouseDown={(event) => event.preventDefault()} onClick={() => { onChange(option); setOpen(false); }}>{option}</button>)}
+    </div>}
+  </div>;
+}
+
+export function TaskSection({ tasks, dayDate, disabled, onTasksChange, onAdd, onToggle, onUpdate, onDelete, onReorder, onError }: Props) {
   const [draft, setDraft] = useState("");
   const [editing, setEditing] = useState<Task | null>(null);
   const [editTitle, setEditTitle] = useState("");
-  const [editDueAt, setEditDueAt] = useState("");
+  const [editDueDate, setEditDueDate] = useState(dayDate);
+  const [editDueHour, setEditDueHour] = useState("");
+  const [editDueMinute, setEditDueMinute] = useState("");
+  const [showDueDate, setShowDueDate] = useState(false);
   const [editError, setEditError] = useState("");
   const [saving, setSaving] = useState(false);
   const [now, setNow] = useState(() => Date.now());
@@ -68,15 +120,28 @@ export function TaskSection({ tasks, disabled, onTasksChange, onAdd, onToggle, o
     } catch { /* The parent reports the error; keep the draft for retry. */ }
   };
   const openEditor = (task: Task, element: HTMLElement) => {
-    opener.current = element; setEditing(task); setEditTitle(task.title); setEditDueAt(toLocalInput(task.dueAt)); setEditError("");
+    const due = toLocalParts(task.dueAt);
+    opener.current = element; setEditing(task); setEditTitle(task.title);
+    setEditDueDate(due?.date ?? dayDate); setEditDueHour(due?.hour ?? ""); setEditDueMinute(due?.minute ?? "");
+    setShowDueDate(Boolean(due && due.date !== dayDate)); setEditError("");
+  };
+  const clearDeadline = () => {
+    setEditDueDate(dayDate); setEditDueHour(""); setEditDueMinute(""); setShowDueDate(false); setEditError("");
   };
   const closeEditor = () => { setEditing(null); setEditError(""); window.setTimeout(() => opener.current?.focus()); };
   const saveEditor = async () => {
     if (!editing || saving) return;
     const title = editTitle.trim();
     if (!title) { setEditError("タスク名を入力してください"); return; }
+    const hasHour = editDueHour.trim() !== "";
+    const hasMinute = editDueMinute.trim() !== "";
+    if (hasHour !== hasMinute) { setEditError("期限の時と分を両方入力してください"); return; }
+    if (hasHour && (!timePartIsValid(editDueHour, 23) || !timePartIsValid(editDueMinute, 59))) {
+      setEditError("期限は00:00〜23:59の範囲で入力してください"); return;
+    }
+    const dueAt = hasHour ? toRfc3339(`${editDueDate}T${pad(Number(editDueHour))}:${pad(Number(editDueMinute))}`) : null;
     setSaving(true); setEditError("");
-    try { await onUpdate({ ...editing, title, dueAt: toRfc3339(editDueAt) }); closeEditor(); }
+    try { await onUpdate({ ...editing, title, dueAt }); closeEditor(); }
     catch (error) { setEditError("保存できませんでした"); onError(String(error)); }
     finally { setSaving(false); }
   };
@@ -143,7 +208,17 @@ export function TaskSection({ tasks, disabled, onTasksChange, onAdd, onToggle, o
     {editing && createPortal(<div className="task-editor-backdrop"><div ref={dialog} className="task-editor" role="dialog" aria-modal="true" aria-labelledby="task-editor-title">
       <header><div><span>TASK</span><h2 id="task-editor-title">タスクを編集</h2></div><button className="editor-close" aria-label="編集画面を閉じる" disabled={saving} onClick={closeEditor}>×</button></header>
       <label><span>タスク名</span><input aria-label="タスク名" value={editTitle} disabled={saving} onChange={(event) => setEditTitle(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.nativeEvent.isComposing) { event.preventDefault(); void saveEditor(); } }}/></label>
-      <label><span>期限（任意）</span><input type="datetime-local" aria-label="期限" value={editDueAt} disabled={saving} onChange={(event) => setEditDueAt(event.target.value)}/></label>
+      <div className="task-deadline-field">
+        <div className="task-deadline-heading"><span>期限（任意）</span><button type="button" disabled={saving} onClick={() => setShowDueDate((current) => !current)}>{showDueDate ? "日付を閉じる" : "日付を変更"}</button></div>
+        <p>{formatDueDate(editDueDate)}の期限</p>
+        {showDueDate && <label className="task-due-date"><span>期限日</span><input type="date" aria-label="期限日" value={editDueDate} disabled={saving} onChange={(event) => { setEditDueDate(event.target.value || dayDate); setEditError(""); }}/></label>}
+        <div className="task-due-time" role="group" aria-label="期限時刻">
+          <TimePartInput label="時" value={editDueHour} max={23} options={hourOptions} disabled={saving} onChange={(value) => { setEditDueHour(value); setEditError(""); }}/>
+          <span aria-hidden="true">:</span>
+          <TimePartInput label="分" value={editDueMinute} max={59} options={minuteOptions} disabled={saving} onChange={(value) => { setEditDueMinute(value); setEditError(""); }}/>
+          <button type="button" className="task-deadline-clear" disabled={saving || (!editDueHour && !editDueMinute && editDueDate === dayDate)} onClick={clearDeadline}>期限を解除</button>
+        </div>
+      </div>
       {editError && <p className="error-text" role="alert">{editError}</p>}
       <footer><button disabled={saving} onClick={closeEditor}>キャンセル</button><button className="primary-button" disabled={saving} onClick={() => void saveEditor()}>{saving ? "保存中…" : "保存"}</button></footer>
     </div></div>, document.querySelector(".app-shell") ?? document.body)}
