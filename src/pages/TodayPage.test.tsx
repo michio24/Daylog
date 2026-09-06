@@ -13,6 +13,7 @@ vi.mock("../services/api", () => ({
   api: {
     saveReview: vi.fn(),
     updateNoteCard: vi.fn(),
+    updateEntry: vi.fn(),
     exportDayMarkdown: vi.fn()
   }
 }));
@@ -35,6 +36,7 @@ describe("TodayPage Markdown export", () => {
     vi.mocked(save).mockResolvedValue("C:\\Exports\\2026年09月05日(土).md");
     vi.mocked(api.saveReview).mockResolvedValue();
     vi.mocked(api.updateNoteCard).mockImplementation(async (note) => note);
+    vi.mocked(api.updateEntry).mockImplementation(async (entry) => entry);
     vi.mocked(api.exportDayMarkdown).mockResolvedValue({ markdownPath: "C:\\Exports\\2026年09月05日(土).md", assetsDirectory: null, attachmentCount: 0 });
   });
 
@@ -61,5 +63,38 @@ describe("TodayPage Markdown export", () => {
     await waitFor(() => expect(save).toHaveBeenCalled());
     expect(api.exportDayMarkdown).not.toHaveBeenCalled();
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+
+  it("reorders an edited entry by its new time", async () => {
+    const entries = [
+      { id: 1, entryType: "memo", body: "早い", occurredAt: "2026-09-05T10:00:00+09:00" },
+      { id: 2, entryType: "memo", body: "遅い", occurredAt: "2026-09-05T12:00:00+09:00" }
+    ];
+    const currentDay = { ...day, entries, notes: [] };
+    const onDay = vi.fn();
+    render(<TodayPage day={currentDay} settings={settings} onDay={onDay} onOpenDate={vi.fn()} onError={vi.fn()}/>);
+    fireEvent.click(screen.getByRole("button", { name: "記録「遅い」を編集" }));
+    fireEvent.change(screen.getByLabelText("記録の時"), { target: { value: "08" } });
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+
+    await waitFor(() => expect(api.updateEntry).toHaveBeenCalledWith(expect.objectContaining({ id: 2, occurredAt: expect.stringMatching(/^2026-09-05T08:00:00/) }), "2026-09-05"));
+    const update = onDay.mock.calls.at(-1)?.[0] as (value: DayData) => DayData;
+    expect(update(currentDay).entries.map((entry) => entry.id)).toEqual([2, 1]);
+  });
+
+  it("removes an entry from the current list after moving it to another day", async () => {
+    const currentDay = { ...day, entries: [{ id: 1, entryType: "memo", body: "移動する", occurredAt: "2026-09-05T10:00:00+09:00" }], notes: [] };
+    const onDay = vi.fn();
+    const onOpenDate = vi.fn();
+    render(<TodayPage day={currentDay} settings={settings} onDay={onDay} onOpenDate={onOpenDate} onError={vi.fn()}/>);
+    fireEvent.click(screen.getByRole("button", { name: "記録「移動する」を編集" }));
+    fireEvent.click(screen.getByRole("button", { name: "日付を変更" }));
+    fireEvent.change(screen.getByLabelText("記録日"), { target: { value: "2026-09-07" } });
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+
+    await waitFor(() => expect(api.updateEntry).toHaveBeenCalledWith(expect.objectContaining({ id: 1, occurredAt: expect.stringMatching(/^2026-09-07T10:00:00/) }), "2026-09-07"));
+    const update = onDay.mock.calls.at(-1)?.[0] as (value: DayData) => DayData;
+    expect(update(currentDay).entries).toEqual([]);
+    expect(onOpenDate).not.toHaveBeenCalled();
   });
 });

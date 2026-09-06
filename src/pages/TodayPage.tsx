@@ -2,7 +2,7 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useSta
 import { save as saveFile } from "@tauri-apps/plugin-dialog";
 import { api } from "../services/api";
 import { useDebouncedSave } from "../hooks/useDebouncedSave";
-import type { AiStatus, DayData, Review, SaveStatus, Settings } from "../types";
+import type { AiStatus, DayData, Entry, Review, SaveStatus, Settings } from "../types";
 import { addDaysToDateKey, formatExportFileName, formatHolidayNames, formatLongDate, localDateKey } from "../utils/date";
 import { TaskSection } from "../components/TaskSection";
 import { TimelineSection } from "../components/TimelineSection";
@@ -99,6 +99,15 @@ export const TodayPage = forwardRef<TodayPageHandle, Props>(function TodayPage({
       setExporting(false);
     }
   };
+  const saveEntry = async (entry: Entry, targetDate: string) => {
+    const next = await api.updateEntry(entry, targetDate);
+    updateCurrentDay((current) => {
+      if (targetDate !== day.dayDate) return { ...current, entries: current.entries.filter((item) => item.id !== next.id) };
+      const entries = current.entries.map((item) => item.id === next.id ? next : item).sort((a, b) => new Date(a.occurredAt).getTime() - new Date(b.occurredAt).getTime() || a.id - b.id);
+      return { ...current, entries };
+    });
+    return next;
+  };
 
   return <main className="page today-page">
     <div className={`page-inner ${settings.layout === "two" ? "wide" : settings.layout === "three" ? "three-wide" : ""}`}>
@@ -107,7 +116,7 @@ export const TodayPage = forwardRef<TodayPageHandle, Props>(function TodayPage({
         {settings.layout === "three" && <div className="calendar-column"><CalendarPanel compact selectedDate={day.dayDate} disabled={dateNavigationPending} allowFutureMonths onSelectDate={navigateToDate} onHolidayChange={(date, customHolidayName) => { if (date === day.dayDate) updateCurrentDay((current) => ({ ...current, customHolidayName })); }} onError={onError}/></div>}
         <div className="column primary-column">
           <TaskSection tasks={day.tasks} dayDate={day.dayDate} disabled={day.isClosed} onError={onError} onTasksChange={(tasks) => updateCurrentDay((current) => ({ ...current, tasks }))} onAdd={(title) => required(async () => { const task = await api.createTask(day.dayDate, title); updateCurrentDay((current) => ({ ...current, tasks: [...current.tasks, task] })); })} onToggle={(task) => guarded(async () => { const next = await api.updateTask({ ...task, isCompleted: !task.isCompleted }); updateCurrentDay((current) => ({ ...current, tasks: current.tasks.map((item) => item.id === next.id ? next : item) })); })} onUpdate={async (task) => { const next = await api.updateTask(task); updateCurrentDay((current) => ({ ...current, tasks: current.tasks.map((item) => item.id === next.id ? next : item) })); return next; }} onDelete={(id) => guarded(async () => { await api.deleteTask(id); updateCurrentDay((current) => ({ ...current, tasks: current.tasks.filter((task) => task.id !== id) })); })} onReorder={(orderedIds) => api.reorderTasks(day.dayDate, orderedIds)}/>
-          <TimelineSection entries={day.entries} disabled={day.isClosed} onAdd={(body, entryType) => required(async () => { const entry = await api.createEntry(day.dayDate, body, entryType); updateCurrentDay((current) => ({ ...current, entries: [...current.entries, entry] })); })} onType={(entry, entryType) => guarded(async () => { const next = await api.updateEntry({ ...entry, entryType }); updateCurrentDay((current) => ({ ...current, entries: current.entries.map((item) => item.id === next.id ? next : item) })); })} onDelete={(id) => guarded(async () => { await api.deleteEntry(id); updateCurrentDay((current) => ({ ...current, entries: current.entries.filter((entry) => entry.id !== id) })); })}/>
+          <TimelineSection entries={day.entries} dayDate={day.dayDate} disabled={day.isClosed} onError={onError} onAdd={(body, entryType) => required(async () => { const entry = await api.createEntry(day.dayDate, body, entryType); updateCurrentDay((current) => ({ ...current, entries: [...current.entries, entry] })); })} onUpdate={saveEntry} onType={(entry, entryType) => guarded(async () => { await saveEntry({ ...entry, entryType }, day.dayDate); })} onDelete={(id) => guarded(async () => { await api.deleteEntry(id); updateCurrentDay((current) => ({ ...current, entries: current.entries.filter((entry) => entry.id !== id) })); })}/>
         </div>
         <div className="column secondary-column">
           <DailyNoteSection ref={noteSection} notes={day.notes} disabled={day.isClosed} onError={onError} onCardsChange={(notes) => updateCurrentDay((current) => ({ ...current, notes }))} onCreate={async () => { const card = await api.createNoteCard(day.dayDate); updateCurrentDay((current) => ({ ...current, notes: [...current.notes, card] })); return card; }} onSave={async (card) => { const saved = await api.updateNoteCard(card); updateCurrentDay((current) => ({ ...current, notes: current.notes.map((note) => note.id === saved.id ? saved : note) })); return saved; }} onDelete={async (id) => { await api.deleteNoteCard(id); updateCurrentDay((current) => ({ ...current, notes: current.notes.filter((note) => note.id !== id) })); }} onReorder={async (orderedIds) => { const notes = await api.reorderNoteCards(day.dayDate, orderedIds); updateCurrentDay((current) => ({ ...current, notes })); return notes; }}/>

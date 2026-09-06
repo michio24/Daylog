@@ -1,7 +1,7 @@
 use crate::{
     ai::AiProcessManager, backup, database::Database, models::*, settings::SettingsStore, AppPaths,
 };
-use chrono::{DateTime, Local};
+use chrono::{DateTime, Local, NaiveDate};
 use tauri::State;
 use tauri_plugin_opener::OpenerExt;
 
@@ -65,8 +65,23 @@ pub fn create_entry(
     db.create_entry(&date, body.trim(), &entry_type)
 }
 #[tauri::command]
-pub fn update_entry(entry: Entry, db: State<Database>) -> Result<Entry, String> {
-    db.update_entry(&entry)
+pub fn update_entry(
+    mut entry: Entry,
+    target_date: String,
+    db: State<Database>,
+) -> Result<Entry, String> {
+    entry.body = entry.body.trim().to_string();
+    if entry.body.is_empty() {
+        return Err("記録が空です".into());
+    }
+    let occurred_at = DateTime::parse_from_rfc3339(&entry.occurred_at)
+        .map_err(|_| "記録日時の形式が正しくありません".to_string())?;
+    if NaiveDate::parse_from_str(&target_date, "%Y-%m-%d").is_err()
+        || occurred_at.format("%Y-%m-%d").to_string() != target_date
+    {
+        return Err("記録日が正しくありません".into());
+    }
+    db.update_entry(&entry, &target_date)
 }
 #[tauri::command]
 pub fn delete_entry(id: i64, db: State<Database>) -> Result<(), String> {

@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { createPortal } from "react-dom";
 import type { Task } from "../types";
+import { TimeFields, timePartIsValid } from "./TimeFields";
 
 interface Props {
   tasks: Task[]; dayDate: string; disabled: boolean; onTasksChange: (tasks: Task[]) => void;
@@ -30,51 +31,6 @@ const formatDueDate = (value: string) => {
   if (!year || !month || !day) return value;
   return new Intl.DateTimeFormat("ja-JP", { month: "long", day: "numeric", weekday: "short" }).format(new Date(year, month - 1, day, 12));
 };
-const normalizeTimePart = (value: string, max: number) => {
-  if (!/^\d{1,2}$/.test(value)) return value;
-  const number = Number(value);
-  return number <= max ? pad(number) : value;
-};
-const timePartIsValid = (value: string, max: number) => /^\d{1,2}$/.test(value) && Number(value) <= max;
-const hourOptions = Array.from({ length: 24 }, (_, index) => pad(index));
-const minuteOptions = Array.from({ length: 60 }, (_, index) => pad(index));
-
-interface TimePartInputProps {
-  label: string; value: string; max: number; options: string[]; disabled: boolean; onChange: (value: string) => void;
-}
-
-function TimePartInput({ label, value, max, options, disabled, onChange }: TimePartInputProps) {
-  const [open, setOpen] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const selectedOption = useRef<HTMLButtonElement>(null);
-  const listId = `task-due-${label === "時" ? "hours" : "minutes"}`;
-
-  useEffect(() => {
-    if (open) selectedOption.current?.scrollIntoView?.({ block: "nearest" });
-  }, [open]);
-
-  const onKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
-    if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); setOpen(false); return; }
-    if (event.key === "Enter") { event.preventDefault(); setOpen(false); return; }
-    if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
-    event.preventDefault();
-    const current = timePartIsValid(value, max) ? Number(value) : 0;
-    const next = event.key === "ArrowDown" ? (current + 1) % (max + 1) : (current + max) % (max + 1);
-    onChange(pad(next)); setOpen(true);
-  };
-
-  return <div className="task-time-part">
-    <label htmlFor={`${listId}-input`}>{label}</label>
-    <div className="task-time-control">
-      <input ref={inputRef} id={`${listId}-input`} type="text" inputMode="numeric" maxLength={2} role="combobox" aria-label={`期限の${label}`} aria-expanded={open} aria-controls={listId} placeholder="--" value={value} disabled={disabled} onFocus={() => setOpen(true)} onChange={(event) => { onChange(event.target.value); setOpen(true); }} onKeyDown={onKeyDown} onBlur={() => { onChange(normalizeTimePart(value, max)); setOpen(false); }}/>
-      <button type="button" tabIndex={-1} aria-label={`${label}の候補を表示`} aria-expanded={open} disabled={disabled} onMouseDown={(event) => event.preventDefault()} onClick={() => { inputRef.current?.focus(); setOpen(true); }}>▼</button>
-    </div>
-    {open && <div id={listId} className="task-time-options" role="listbox" aria-label={`${label}の候補`}>
-      {options.map((option) => <button type="button" role="option" aria-selected={value === option} className={value === option ? "selected" : ""} ref={value === option ? selectedOption : undefined} tabIndex={-1} key={option} onMouseDown={(event) => event.preventDefault()} onClick={() => { onChange(option); setOpen(false); }}>{option}</button>)}
-    </div>}
-  </div>;
-}
-
 export function TaskSection({ tasks, dayDate, disabled, onTasksChange, onAdd, onToggle, onUpdate, onDelete, onReorder, onError }: Props) {
   const [draft, setDraft] = useState("");
   const [editing, setEditing] = useState<Task | null>(null);
@@ -212,10 +168,8 @@ export function TaskSection({ tasks, dayDate, disabled, onTasksChange, onAdd, on
         <div className="task-deadline-heading"><span>期限（任意）</span><button type="button" disabled={saving} onClick={() => setShowDueDate((current) => !current)}>{showDueDate ? "日付を閉じる" : "日付を変更"}</button></div>
         <p>{formatDueDate(editDueDate)}の期限</p>
         {showDueDate && <label className="task-due-date"><span>期限日</span><input type="date" aria-label="期限日" value={editDueDate} disabled={saving} onChange={(event) => { setEditDueDate(event.target.value || dayDate); setEditError(""); }}/></label>}
-        <div className="task-due-time" role="group" aria-label="期限時刻">
-          <TimePartInput label="時" value={editDueHour} max={23} options={hourOptions} disabled={saving} onChange={(value) => { setEditDueHour(value); setEditError(""); }}/>
-          <span aria-hidden="true">:</span>
-          <TimePartInput label="分" value={editDueMinute} max={59} options={minuteOptions} disabled={saving} onChange={(value) => { setEditDueMinute(value); setEditError(""); }}/>
+        <div className="task-due-time">
+          <TimeFields ariaLabel="期限時刻" labelPrefix="期限" hour={editDueHour} minute={editDueMinute} disabled={saving} onHourChange={(value) => { setEditDueHour(value); setEditError(""); }} onMinuteChange={(value) => { setEditDueMinute(value); setEditError(""); }}/>
           <button type="button" className="task-deadline-clear" disabled={saving || (!editDueHour && !editDueMinute && editDueDate === dayDate)} onClick={clearDeadline}>期限を解除</button>
         </div>
       </div>

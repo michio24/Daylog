@@ -333,14 +333,10 @@ impl Database {
             occurred_at: stamp,
         })
     }
-    pub fn update_entry(&self, e: &Entry) -> Result<Entry, String> {
+    pub fn update_entry(&self, e: &Entry, target_date: &str) -> Result<Entry, String> {
         let conn = self.0.lock().map_err(|e| e.to_string())?;
-        conn.execute("UPDATE entries SET entry_type=?2,title=?3,body=?4,occurred_at=?5,updated_at=?6 WHERE id=?1",params![e.id,e.entry_type,e.title,e.body,e.occurred_at,now()]).map_err(|x|x.to_string())?;
-        let day: i64 = conn
-            .query_row("SELECT day_id FROM entries WHERE id=?1", [e.id], |r| {
-                r.get(0)
-            })
-            .map_err(|x| x.to_string())?;
+        let day = Self::day_id(&conn, target_date)?;
+        conn.execute("UPDATE entries SET day_id=?2,entry_type=?3,title=?4,body=?5,occurred_at=?6,updated_at=?7 WHERE id=?1",params![e.id,day,e.entry_type,e.title,e.body,e.occurred_at,now()]).map_err(|x|x.to_string())?;
         self.index(
             &conn,
             "entry",
@@ -908,6 +904,37 @@ mod tests {
             .iter()
             .any(|r| r.entity_type == "note_card"));
         assert!(!db.search("朝会").unwrap().is_empty());
+        drop(db);
+        let _ = std::fs::remove_file(&path);
+        let _ = std::fs::remove_file(path.with_extension("db-wal"));
+        let _ = std::fs::remove_file(path.with_extension("db-shm"));
+    }
+
+    #[test]
+    fn updates_entry_content_and_moves_it_to_the_target_day() {
+        let path = std::env::temp_dir().join(format!(
+            "daylog-entry-move-test-{}-{}.db",
+            std::process::id(),
+            Local::now().timestamp_nanos_opt().unwrap_or_default()
+        ));
+        let db = open_test_database(&path);
+        let mut entry = db
+            .create_entry("2026-09-05", "変更前の内容", "仕事")
+            .unwrap();
+        entry.title = None;
+        entry.body = "変更後の内容".into();
+        entry.occurred_at = "2026-09-07T23:59:00+09:00".into();
+
+        let updated = db.update_entry(&entry, "2026-09-07").unwrap();
+
+        assert_eq!(updated.body, "変更後の内容");
+        assert!(db.get_day("2026-09-05").unwrap().entries.is_empty());
+        let target = db.get_day("2026-09-07").unwrap();
+        assert_eq!(target.entries.len(), 1);
+        assert_eq!(target.entries[0].occurred_at, "2026-09-07T23:59:00+09:00");
+        assert!(db.search("変更前").unwrap().is_empty());
+        assert_eq!(db.search("変更後").unwrap()[0].day_date, "2026-09-07");
+
         drop(db);
         let _ = std::fs::remove_file(&path);
         let _ = std::fs::remove_file(path.with_extension("db-wal"));
