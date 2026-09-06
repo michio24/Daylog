@@ -1,9 +1,10 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState, type ClipboardEvent as ReactClipboardEvent, type DragEvent as ReactDragEvent, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
-import { open } from "@tauri-apps/plugin-dialog";
+import { open, save as saveFile } from "@tauri-apps/plugin-dialog";
 import { createPortal } from "react-dom";
 import type { Attachment, NoteCard, SaveStatus } from "../types";
 import { api } from "../services/api";
 import { toggleMarkdownTask } from "../utils/markdown";
+import { formatNoteExportFileName } from "../utils/date";
 import { MarkdownRenderer } from "./MarkdownRenderer";
 import { applyMarkdownEdit, MarkdownToolbar } from "./MarkdownToolbar";
 
@@ -22,6 +23,8 @@ export const DailyNoteSection = forwardRef<DailyNoteSectionHandle, Props>(functi
   const [draft, setDraft] = useState<NoteCard | null>(null);
   const [mode, setMode] = useState<"edit" | "view">("edit");
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("saved");
+  const [exporting, setExporting] = useState(false);
+  const [exportMessage, setExportMessage] = useState("");
   const [draggedId, setDraggedId] = useState<number | null>(null);
   const [dropTargetId, setDropTargetId] = useState<number | null>(null);
   const [dragPreview, setDragPreview] = useState<{ note: NoteCard; left: number; top: number; width: number; height: number; root: Element } | null>(null);
@@ -33,6 +36,7 @@ export const DailyNoteSection = forwardRef<DailyNoteSectionHandle, Props>(functi
   const dirtyRef = useRef(false);
   const revisionRef = useRef(0);
   const pendingRef = useRef<Promise<void> | null>(null);
+  const exportingRef = useRef(false);
   const timerRef = useRef<number>();
   const dialogRef = useRef<HTMLDivElement>(null);
   const markdownInputRef = useRef<HTMLTextAreaElement>(null);
@@ -94,7 +98,7 @@ export const DailyNoteSection = forwardRef<DailyNoteSectionHandle, Props>(functi
   const openEditor = (card: NoteCard) => {
     openerRef.current = document.activeElement as HTMLElement;
     draftRef.current = card; dirtyRef.current = false;
-    setDraft(card); setMode(disabled ? "view" : "edit"); setSaveStatus("saved");
+    setDraft(card); setMode(disabled ? "view" : "edit"); setSaveStatus("saved"); setExportMessage("");
   };
   const changeDraft = (change: Partial<NoteCard>) => {
     if (!draftRef.current) return;
@@ -184,6 +188,26 @@ export const DailyNoteSection = forwardRef<DailyNoteSectionHandle, Props>(functi
       await onDelete(draft.id); setDraft(null); window.setTimeout(() => openerRef.current?.focus());
     } catch (error) { onError(String(error)); }
   };
+  const exportMarkdown = async () => {
+    if (exportingRef.current || !draftRef.current) return;
+    exportingRef.current = true;
+    setExporting(true); setExportMessage("");
+    try {
+      await persistDraft();
+      const current = draftRef.current;
+      if (!current) return;
+      const path = await saveFile({ defaultPath: formatNoteExportFileName(current.title), filters: [{ name: "Markdown", extensions: ["md"] }] });
+      if (!path) return;
+      const result = await api.exportNoteMarkdown(current.id, path);
+      const attachments = result.attachmentCount ? `（添付 ${result.attachmentCount} 件）` : "";
+      setExportMessage(`保存しました: ${result.markdownPath}${attachments}`);
+    } catch (error) {
+      onError(`Markdownを保存できませんでした: ${String(error)}`);
+    } finally {
+      exportingRef.current = false;
+      setExporting(false);
+    }
+  };
   const move = async (from: number, to: number) => {
     if (disabled || from === to || to < 0 || to >= notes.length) return;
     const previous = notes;
@@ -251,7 +275,7 @@ export const DailyNoteSection = forwardRef<DailyNoteSectionHandle, Props>(functi
       <div className="note-editor-toolbar"><div className="segmented"><button className={mode === "edit" ? "active" : ""} disabled={disabled} onClick={() => setMode("edit")}>編集</button><button className={mode === "view" ? "active" : ""} onClick={() => setMode("view")}>表示</button></div><span className={`save-state ${saveStatus}`}>{statusText(saveStatus)}</span></div>
       {mode === "edit" ? <input className="note-title-input" disabled={disabled} aria-label="メモのタイトル" placeholder="タイトル" value={draft.title} onChange={(event) => changeDraft({ title: event.target.value })}/> : <h3 className="note-editor-view-title">{draft.title.trim() || "無題のメモ"}</h3>}
       {mode === "edit" ? <div className="note-edit-body"><MarkdownToolbar textarea={markdownInputRef} value={draft.markdown} disabled={disabled} onChange={(markdown) => changeDraft({ markdown })} onPickFiles={(imageOnly) => void pickFiles(imageOnly)}/><textarea ref={markdownInputRef} className="note-markdown-input" disabled={disabled} aria-label="Markdown本文" value={draft.markdown} onChange={(event) => changeDraft({ markdown: event.target.value })} onKeyDown={editShortcut} onPaste={pasteFiles} onDragOver={(event) => event.preventDefault()} onDrop={dropFiles} placeholder="# 今日考えたこと\n\n- Markdownで自由に"/></div> : <div className="markdown note-editor-preview"><MarkdownRenderer markdown={draft.markdown || "_本文はまだありません。_"} interactive checkboxDisabled={disabled} onTaskToggle={toggleTask} onError={onError}/></div>}
-      <footer>{!disabled && <button className="danger-button" onClick={() => void removeCard()}>メモを削除</button>}<button className="primary-button" onClick={() => void closeEditor()}>閉じる</button></footer>
+      <footer>{!disabled && <button className="danger-button" onClick={() => void removeCard()}>メモを削除</button>}{exportMessage && <span className="note-editor-export-message" role="status">{exportMessage}</span>}<button className="export-button" aria-label="このメモをMarkdownで保存" disabled={exporting} onClick={() => void exportMarkdown()}>{exporting ? "保存中…" : "Markdownで保存"}</button><button className="primary-button" onClick={() => void closeEditor()}>閉じる</button></footer>
     </div></div>, document.querySelector(".app-shell") ?? document.body)}
   </section>;
 });

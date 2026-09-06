@@ -3,5 +3,5 @@
   "identifier": "default",
   "description": "Daylog main window capability",
   "windows": ["main"],
-  "permissions": ["core:default", "core:window:allow-destroy", "dialog:allow-open", "opener:allow-open-url"]
+  "permissions": ["core:default", "core:window:allow-destroy", "dialog:allow-open", "dialog:allow-save", "opener:allow-open-url"]
 }

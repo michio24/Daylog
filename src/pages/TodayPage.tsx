@@ -1,8 +1,9 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState, type Dispatch, type SetStateAction } from "react";
+import { save as saveFile } from "@tauri-apps/plugin-dialog";
 import { api } from "../services/api";
 import { useDebouncedSave } from "../hooks/useDebouncedSave";
 import type { AiStatus, DayData, Review, SaveStatus, Settings } from "../types";
-import { addDaysToDateKey, formatHolidayNames, formatLongDate, localDateKey } from "../utils/date";
+import { addDaysToDateKey, formatExportFileName, formatHolidayNames, formatLongDate, localDateKey } from "../utils/date";
 import { TaskSection } from "../components/TaskSection";
 import { TimelineSection } from "../components/TimelineSection";
 import { DailyNoteSection, type DailyNoteSectionHandle } from "../components/DailyNoteSection";
@@ -16,10 +17,12 @@ export const TodayPage = forwardRef<TodayPageHandle, Props>(function TodayPage({
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("saved");
   const [aiStatus, setAiStatus] = useState<AiStatus>("idle");
   const [dateNavigationPending, setDateNavigationPending] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [exportMessage, setExportMessage] = useState("");
   const noteSection = useRef<DailyNoteSectionHandle>(null);
   const aiTimers = useRef<number[]>([]);
   const aiCancelled = useRef(false);
-  useEffect(() => { setReview(day.review); setSaveStatus("saved"); }, [day.dayDate]);
+  useEffect(() => { setReview(day.review); setSaveStatus("saved"); setExportMessage(""); }, [day.dayDate]);
   useEffect(() => () => aiTimers.current.forEach(window.clearTimeout), []);
 
   const saveReview = useCallback(async (value: Review) => { setSaveStatus("saving"); try { await api.saveReview(day.dayDate, value); setSaveStatus("saved"); } catch { setSaveStatus("error"); throw new Error("review save failed"); } }, [day.dayDate]);
@@ -80,6 +83,22 @@ export const TodayPage = forwardRef<TodayPageHandle, Props>(function TodayPage({
     try { await api.cancelAi(); setAiStatus("cancelled"); }
     catch (error) { setAiStatus("error"); onError(String(error)); }
   };
+  const exportMarkdown = async () => {
+    if (exporting) return;
+    setExporting(true); setExportMessage("");
+    try {
+      await flushAll();
+      const path = await saveFile({ defaultPath: formatExportFileName(day.dayDate), filters: [{ name: "Markdown", extensions: ["md"] }] });
+      if (!path) return;
+      const result = await api.exportDayMarkdown(day.dayDate, path);
+      const attachments = result.attachmentCount ? `（添付 ${result.attachmentCount} 件）` : "";
+      setExportMessage(`保存しました: ${result.markdownPath}${attachments}`);
+    } catch (error) {
+      onError(`Markdownを保存できませんでした: ${String(error)}`);
+    } finally {
+      setExporting(false);
+    }
+  };
 
   return <main className="page today-page">
     <div className={`page-inner ${settings.layout === "two" ? "wide" : settings.layout === "three" ? "three-wide" : ""}`}>
@@ -92,7 +111,7 @@ export const TodayPage = forwardRef<TodayPageHandle, Props>(function TodayPage({
         </div>
         <div className="column secondary-column">
           <DailyNoteSection ref={noteSection} notes={day.notes} disabled={day.isClosed} onError={onError} onCardsChange={(notes) => updateCurrentDay((current) => ({ ...current, notes }))} onCreate={async () => { const card = await api.createNoteCard(day.dayDate); updateCurrentDay((current) => ({ ...current, notes: [...current.notes, card] })); return card; }} onSave={async (card) => { const saved = await api.updateNoteCard(card); updateCurrentDay((current) => ({ ...current, notes: current.notes.map((note) => note.id === saved.id ? saved : note) })); return saved; }} onDelete={async (id) => { await api.deleteNoteCard(id); updateCurrentDay((current) => ({ ...current, notes: current.notes.filter((note) => note.id !== id) })); }} onReorder={async (orderedIds) => { const notes = await api.reorderNoteCards(day.dayDate, orderedIds); updateCurrentDay((current) => ({ ...current, notes })); return notes; }}/>
-          <ReviewSection review={review} disabled={day.isClosed} settings={settings} saveStatus={saveStatus} canRunAi={canRunAi} aiStatus={aiStatus} aiSummary={day.aiSummary} onChange={updateReview} onBlur={() => void flushReview().catch((error) => onError(String(error)))} onRunAi={() => void runAi()} onCancelAi={() => void cancelAi()} onCandidate={(title) => void guarded(async () => { await api.createTask(tomorrow, title, true); })} onClose={() => void guarded(async () => { await flushAll(); await api.closeDay(day.dayDate); updateCurrentDay((current) => ({ ...current, review, isClosed: true })); })}/>
+          <ReviewSection review={review} disabled={day.isClosed} settings={settings} saveStatus={saveStatus} canRunAi={canRunAi} aiStatus={aiStatus} aiSummary={day.aiSummary} exporting={exporting} exportMessage={exportMessage} onChange={updateReview} onBlur={() => void flushReview().catch((error) => onError(String(error)))} onRunAi={() => void runAi()} onCancelAi={() => void cancelAi()} onCandidate={(title) => void guarded(async () => { await api.createTask(tomorrow, title, true); })} onExport={() => void exportMarkdown()} onClose={() => void guarded(async () => { await flushAll(); await api.closeDay(day.dayDate); updateCurrentDay((current) => ({ ...current, review, isClosed: true })); })}/>
         </div>
       </div>
     </div>

@@ -308,6 +308,24 @@ impl Database {
             sort_order: order,
         })
     }
+    pub fn get_note_card(&self, id: i64) -> Result<NoteCard, String> {
+        let conn = self.0.lock().map_err(|e| e.to_string())?;
+        conn.query_row(
+            "SELECT id,title,markdown,sort_order FROM note_cards WHERE id=?1",
+            [id],
+            |row| {
+                Ok(NoteCard {
+                    id: row.get(0)?,
+                    title: row.get(1)?,
+                    markdown: row.get(2)?,
+                    sort_order: row.get(3)?,
+                })
+            },
+        )
+        .optional()
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| "メモが見つかりません".into())
+    }
     pub fn update_note_card(&self, card: &NoteCard) -> Result<NoteCard, String> {
         let conn = self.0.lock().map_err(|e| e.to_string())?;
         let changed = conn

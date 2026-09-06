@@ -102,6 +102,14 @@ pub struct HolidayUpdateResult {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct ExportResult {
+    pub markdown_path: String,
+    pub assets_directory: Option<String>,
+    pub attachment_count: usize,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SearchResult {
     pub entity_type: String,
     pub entity_id: i64,

@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { CalendarDay, CustomHoliday, DayData, HolidayUpdateResult, SearchResult, Settings, Task, Entry, NoteCard, Review, AiSummary, Attachment } from "../types";
+import type { CalendarDay, CustomHoliday, DayData, ExportResult, HolidayUpdateResult, SearchResult, Settings, Task, Entry, NoteCard, Review, AiSummary, Attachment } from "../types";
 
 const call = <T>(command: string, args?: Record<string, unknown>) => invoke<T>(command, args);
 
@@ -32,5 +32,7 @@ export const api = {
   saveSettings: (settings: Settings) => call<void>("save_settings", { settings }),
   runAi: (date: string) => call<AiSummary>("run_daily_ai", { date }),
   cancelAi: () => call<void>("cancel_ai"),
-  createBackup: () => call<string>("create_backup")
+  createBackup: () => call<string>("create_backup"),
+  exportDayMarkdown: (date: string, path: string) => call<ExportResult>("export_day_markdown", { date, path }),
+  exportNoteMarkdown: (noteId: number, path: string) => call<ExportResult>("export_note_markdown", { noteId, path })
 };

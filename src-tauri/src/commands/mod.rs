@@ -195,3 +195,23 @@ pub fn create_backup(
     )
     .map(|p| p.display().to_string())
 }
+
+#[tauri::command]
+pub fn export_day_markdown(
+    date: String,
+    path: String,
+    db: State<Database>,
+    paths: State<AppPaths>,
+) -> Result<ExportResult, String> {
+    crate::export::export_day(&date, &path, &db, &paths)
+}
+
+#[tauri::command]
+pub fn export_note_markdown(
+    note_id: i64,
+    path: String,
+    db: State<Database>,
+    paths: State<AppPaths>,
+) -> Result<ExportResult, String> {
+    crate::export::export_note(note_id, &path, &db, &paths)
+}

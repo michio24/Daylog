@@ -3,6 +3,7 @@ mod attachments;
 mod backup;
 mod commands;
 mod database;
+mod export;
 mod holidays;
 mod models;
 mod settings;
@@ -141,7 +142,9 @@ pub fn run() {
             commands::save_settings,
             commands::run_daily_ai,
             commands::cancel_ai,
-            commands::create_backup
+            commands::create_backup,
+            commands::export_day_markdown,
+            commands::export_note_markdown
         ])
         .run(tauri::generate_context!())
         .expect("error while running Daylog");

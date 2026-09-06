@@ -3,8 +3,12 @@
 import "@testing-library/jest-dom/vitest";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { save } from "@tauri-apps/plugin-dialog";
 import { DailyNoteSection } from "./DailyNoteSection";
+import { api } from "../services/api";
 import type { NoteCard } from "../types";
+
+vi.mock("@tauri-apps/plugin-dialog", () => ({ open: vi.fn(), save: vi.fn() }));
 
 const cards: NoteCard[] = [
   { id: 1, title: "最初", markdown: "**本文**", sortOrder: 0 },
@@ -12,6 +16,7 @@ const cards: NoteCard[] = [
 ];
 
 beforeEach(() => {
+  vi.clearAllMocks();
   class TestPointerEvent extends MouseEvent {
     pointerId: number;
     constructor(type: string, init: PointerEventInit = {}) {
@@ -23,14 +28,14 @@ beforeEach(() => {
 });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 
-function setup(notes = cards) {
+function setup(notes = cards, disabled = false) {
   const onCardsChange = vi.fn();
   const onCreate = vi.fn(async () => ({ id: 3, title: "", markdown: "", sortOrder: 2 }));
   const onSave = vi.fn(async (card: NoteCard) => card);
   const onDelete = vi.fn(async () => undefined);
   const onReorder = vi.fn(async (ids: number[]) => ids.map((id, sortOrder) => ({ ...cards.find((card) => card.id === id)!, sortOrder })));
   const onError = vi.fn();
-  render(<DailyNoteSection notes={notes} disabled={false} onCardsChange={onCardsChange} onCreate={onCreate} onSave={onSave} onDelete={onDelete} onReorder={onReorder} onError={onError}/>);
+  render(<DailyNoteSection notes={notes} disabled={disabled} onCardsChange={onCardsChange} onCreate={onCreate} onSave={onSave} onDelete={onDelete} onReorder={onReorder} onError={onError}/>);
   return { onCardsChange, onCreate, onSave, onDelete, onReorder, onError };
 }
 
@@ -55,6 +60,64 @@ describe("DailyNoteSection", () => {
     fireEvent.click(screen.getByRole("button", { name: "閉じる" }));
     await waitFor(() => expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ title: "更新後", markdown: "## 見出し\n\n内容" })));
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  });
+
+  it("flushes the edited card before exporting it with a safe title-based file name", async () => {
+    vi.mocked(save).mockResolvedValue("C:\\Exports\\更新_案.md");
+    const exportNote = vi.spyOn(api, "exportNoteMarkdown").mockResolvedValue({ markdownPath: "C:\\Exports\\更新_案.md", assetsDirectory: null, attachmentCount: 0 });
+    const { onSave } = setup();
+    fireEvent.click(cardOpenButton("最初"));
+    fireEvent.change(screen.getByRole("textbox", { name: "メモのタイトル" }), { target: { value: "更新:案" } });
+    fireEvent.change(screen.getByRole("textbox", { name: "Markdown本文" }), { target: { value: "更新した本文" } });
+    fireEvent.click(screen.getByRole("button", { name: "このメモをMarkdownで保存" }));
+
+    await waitFor(() => expect(exportNote).toHaveBeenCalledWith(1, "C:\\Exports\\更新_案.md"));
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ title: "更新:案", markdown: "更新した本文" }));
+    expect(vi.mocked(save).mock.calls[0][0]).toMatchObject({ defaultPath: "更新_案.md" });
+    expect(vi.mocked(onSave).mock.invocationCallOrder[0]).toBeLessThan(vi.mocked(save).mock.invocationCallOrder[0]);
+    expect(screen.getByRole("status")).toHaveTextContent("保存しました");
+  });
+
+  it("exports from a read-only card view and does nothing when the dialog is cancelled", async () => {
+    vi.mocked(save).mockResolvedValue(null);
+    const exportNote = vi.spyOn(api, "exportNoteMarkdown").mockResolvedValue({ markdownPath: "unused.md", assetsDirectory: null, attachmentCount: 0 });
+    setup(cards, true);
+    fireEvent.click(cardOpenButton("最初"));
+    const button = screen.getByRole("button", { name: "このメモをMarkdownで保存" });
+    expect(button).toBeEnabled();
+    fireEvent.click(button);
+
+    await waitFor(() => expect(save).toHaveBeenCalled());
+    expect(exportNote).not.toHaveBeenCalled();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+
+  it("reports an export failure without closing the editor", async () => {
+    vi.mocked(save).mockResolvedValue("C:\\Exports\\最初.md");
+    vi.spyOn(api, "exportNoteMarkdown").mockRejectedValue(new Error("export failed"));
+    const { onError } = setup();
+    fireEvent.click(cardOpenButton("最初"));
+    fireEvent.click(screen.getByRole("button", { name: "このメモをMarkdownで保存" }));
+
+    await waitFor(() => expect(onError).toHaveBeenCalledWith(expect.stringContaining("export failed")));
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+
+  it("prevents duplicate export requests while a save dialog is open", async () => {
+    let finishDialog: (path: string | null) => void = () => undefined;
+    vi.mocked(save).mockImplementation(() => new Promise((resolve) => { finishDialog = resolve; }));
+    const exportNote = vi.spyOn(api, "exportNoteMarkdown").mockResolvedValue({ markdownPath: "unused.md", assetsDirectory: null, attachmentCount: 0 });
+    setup();
+    fireEvent.click(cardOpenButton("最初"));
+    const button = screen.getByRole("button", { name: "このメモをMarkdownで保存" });
+    fireEvent.click(button);
+    await waitFor(() => expect(save).toHaveBeenCalledOnce());
+    expect(button).toBeDisabled();
+    fireEvent.click(button);
+    expect(save).toHaveBeenCalledOnce();
+    finishDialog(null);
+    await waitFor(() => expect(button).toBeEnabled());
+    expect(exportNote).not.toHaveBeenCalled();
   });
 
   it("applies keyboard formatting without losing the selection", async () => {
