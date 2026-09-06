@@ -15,6 +15,7 @@ $repoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $tauriCommand = Join-Path $repoRoot 'node_modules/.bin/tauri.cmd'
 $appExecutable = Join-Path $repoRoot 'src-tauri/target/release/daylog.exe'
 $aiExecutable = Join-Path $repoRoot 'ai/build/Release/daylog-ai.exe'
+$userManual = Join-Path $repoRoot 'ユーザーマニュアル.html'
 
 if ([string]::IsNullOrWhiteSpace($OutputDirectory)) {
     $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
@@ -53,6 +54,9 @@ try {
     if (-not (Test-Path -LiteralPath $appExecutable -PathType Leaf)) {
         throw "Daylog.exe が生成されませんでした: $appExecutable"
     }
+    if (-not (Test-Path -LiteralPath $userManual -PathType Leaf)) {
+        throw "ユーザーマニュアルがありません: $userManual"
+    }
 
     $aiDirectory = Join-Path $OutputDirectory 'ai'
     $runtimeDirectory = Join-Path $aiDirectory 'runtime'
@@ -62,6 +66,7 @@ try {
     New-Item -ItemType Directory -Path $runtimeDirectory, $modelsDirectory -Force | Out-Null
 
     Copy-Item -LiteralPath $appExecutable -Destination (Join-Path $OutputDirectory 'Daylog.exe')
+    Copy-Item -LiteralPath $userManual -Destination (Join-Path $OutputDirectory 'ユーザーマニュアル.html')
 
     if (Test-Path -LiteralPath $aiExecutable -PathType Leaf) {
         Copy-Item -LiteralPath $aiExecutable -Destination (Join-Path $aiDirectory 'daylog-ai.exe')
@@ -132,12 +137,17 @@ data、backups、logs、settings.json は初回起動時に自動生成されま
         if (Test-Path -LiteralPath $archivePath) {
             throw "ZIP出力先が既に存在します: $archivePath"
         }
-        $archiveParent = Split-Path -Parent $OutputDirectory
-        $archiveDirectoryName = Split-Path -Leaf $OutputDirectory
-        & tar.exe -a -c -f $archivePath -C $archiveParent $archiveDirectoryName
-        if ($LASTEXITCODE -ne 0) {
+        try {
+            [System.IO.Compression.ZipFile]::CreateFromDirectory(
+                $OutputDirectory,
+                $archivePath,
+                [System.IO.Compression.CompressionLevel]::Optimal,
+                $true,
+                [System.Text.Encoding]::UTF8
+            )
+        } catch {
             Remove-Item -LiteralPath $archivePath -Force -ErrorAction SilentlyContinue
-            throw "ZIPの作成に失敗しました: $LASTEXITCODE"
+            throw
         }
         Write-Host "ZIPを作成しました: $archivePath"
     }

@@ -59,6 +59,8 @@ npm run portable
 - `Daylog-portable-lite-YYYYMMDD-HHMMSS.zip`: llama.cppランタイム・モデルなしの軽量版
 - `Daylog-portable-with-ai-YYYYMMDD-HHMMSS.zip`: llama.cppランタイム・GGUFモデル同梱版。AIは有効化され、同梱モデルの相対パスが設定済み
 
+どちらにも `ユーザーマニュアル.html` が同梱されます。
+
 AI同梱版を作成するには、`ai/runtime/` に `llama-cli.exe`、`llama-completion.exe`、必要なDLLを配置し、`models/` にGGUFモデルを1つ配置します。別の場所にある素材を使う場合は次のように指定できます。
 
 ```powershell
@@ -67,7 +69,7 @@ npm run portable -- -LlamaCliPath 'C:\path\to\llama-cli.exe' -ModelPath 'C:\path
 
 素材が不足している場合、軽量版を作成した後に不足内容を表示し、AI同梱版の作成を中止します。単一のポータブル版だけを作成する場合は、従来どおりスクリプトを直接実行できます。
 
-ZIPはWindows標準の `tar.exe` を使用して作成するため、2GBを超えるGGUFモデルも同梱できます。
+ZIPは.NET標準APIを使用してUTF-8のファイル名で作成し、2GBを超えるGGUFモデルも同梱できます。
 
 ```powershell
 pwsh -NoLogo -NoProfile -File scripts/build-portable.ps1 `
