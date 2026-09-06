@@ -10,6 +10,7 @@ pub struct Task {
     pub priority: Option<i64>,
     pub carried_over: bool,
     pub completed_at: Option<String>,
+    pub due_at: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

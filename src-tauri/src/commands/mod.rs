@@ -1,7 +1,7 @@
 use crate::{
     ai::AiProcessManager, backup, database::Database, models::*, settings::SettingsStore, AppPaths,
 };
-use chrono::Local;
+use chrono::{DateTime, Local};
 use tauri::State;
 use tauri_plugin_opener::OpenerExt;
 
@@ -26,12 +26,31 @@ pub fn create_task(
     db.create_task(&date, title.trim(), carried_over)
 }
 #[tauri::command]
-pub fn update_task(task: Task, db: State<Database>) -> Result<Task, String> {
+pub fn update_task(mut task: Task, db: State<Database>) -> Result<Task, String> {
+    task.title = task.title.trim().to_string();
+    if task.title.is_empty() {
+        return Err("タスク名が空です".into());
+    }
+    if task
+        .due_at
+        .as_deref()
+        .is_some_and(|due_at| DateTime::parse_from_rfc3339(due_at).is_err())
+    {
+        return Err("期限の形式が正しくありません".into());
+    }
     db.update_task(&task)
 }
 #[tauri::command]
 pub fn delete_task(id: i64, db: State<Database>) -> Result<(), String> {
     db.delete_entity("tasks", id)
+}
+#[tauri::command]
+pub fn reorder_tasks(
+    date: String,
+    ordered_ids: Vec<i64>,
+    db: State<Database>,
+) -> Result<Vec<Task>, String> {
+    db.reorder_tasks(&date, &ordered_ids)
 }
 #[tauri::command]
 pub fn create_entry(

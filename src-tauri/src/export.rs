@@ -314,6 +314,7 @@ mod tests {
                     priority: None,
                     carried_over: false,
                     completed_at: None,
+                    due_at: None,
                 },
                 Task {
                     id: 2,
@@ -323,6 +324,7 @@ mod tests {
                     priority: None,
                     carried_over: true,
                     completed_at: None,
+                    due_at: None,
                 },
             ],
             entries: vec![Entry {

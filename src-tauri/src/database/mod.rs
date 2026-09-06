@@ -38,7 +38,7 @@ impl Database {
         let mut conn = Connection::open(path).map_err(|e| e.to_string())?;
         conn.execute_batch("PRAGMA foreign_keys=ON; PRAGMA journal_mode=WAL;
       CREATE TABLE IF NOT EXISTS days(id INTEGER PRIMARY KEY AUTOINCREMENT,day_date TEXT NOT NULL UNIQUE,is_closed INTEGER NOT NULL DEFAULT 0,created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
-      CREATE TABLE IF NOT EXISTS tasks(id INTEGER PRIMARY KEY AUTOINCREMENT,day_id INTEGER NOT NULL,title TEXT NOT NULL,is_completed INTEGER NOT NULL DEFAULT 0,sort_order INTEGER NOT NULL DEFAULT 0,priority INTEGER,carried_over INTEGER NOT NULL DEFAULT 0,created_at TEXT NOT NULL,completed_at TEXT,FOREIGN KEY(day_id) REFERENCES days(id) ON DELETE CASCADE);
+      CREATE TABLE IF NOT EXISTS tasks(id INTEGER PRIMARY KEY AUTOINCREMENT,day_id INTEGER NOT NULL,title TEXT NOT NULL,is_completed INTEGER NOT NULL DEFAULT 0,sort_order INTEGER NOT NULL DEFAULT 0,priority INTEGER,carried_over INTEGER NOT NULL DEFAULT 0,created_at TEXT NOT NULL,completed_at TEXT,due_at TEXT,FOREIGN KEY(day_id) REFERENCES days(id) ON DELETE CASCADE);
       CREATE TABLE IF NOT EXISTS entries(id INTEGER PRIMARY KEY AUTOINCREMENT,day_id INTEGER NOT NULL,entry_type TEXT NOT NULL DEFAULT 'memo',title TEXT,body TEXT NOT NULL,occurred_at TEXT NOT NULL,created_at TEXT NOT NULL,updated_at TEXT NOT NULL,FOREIGN KEY(day_id) REFERENCES days(id) ON DELETE CASCADE);
       CREATE TABLE IF NOT EXISTS daily_notes(id INTEGER PRIMARY KEY AUTOINCREMENT,day_id INTEGER NOT NULL UNIQUE,markdown TEXT NOT NULL DEFAULT '',created_at TEXT NOT NULL,updated_at TEXT NOT NULL,FOREIGN KEY(day_id) REFERENCES days(id) ON DELETE CASCADE);
       CREATE TABLE IF NOT EXISTS note_cards(id INTEGER PRIMARY KEY AUTOINCREMENT,day_id INTEGER NOT NULL,title TEXT NOT NULL DEFAULT '',markdown TEXT NOT NULL DEFAULT '',sort_order INTEGER NOT NULL DEFAULT 0,created_at TEXT NOT NULL,updated_at TEXT NOT NULL,FOREIGN KEY(day_id) REFERENCES days(id) ON DELETE CASCADE);
@@ -51,6 +51,21 @@ impl Database {
       CREATE VIRTUAL TABLE IF NOT EXISTS search_index USING fts5(entity_type UNINDEXED,entity_id UNINDEXED,day_id UNINDEXED,content,tokenize='unicode61');
       CREATE INDEX IF NOT EXISTS idx_tasks_day ON tasks(day_id); CREATE INDEX IF NOT EXISTS idx_entries_day_time ON entries(day_id,occurred_at); CREATE INDEX IF NOT EXISTS idx_note_cards_day_order ON note_cards(day_id,sort_order,id);")
       .map_err(|e| e.to_string())?;
+        let has_due_at = {
+            let mut query = conn
+                .prepare("PRAGMA table_info(tasks)")
+                .map_err(|e| e.to_string())?;
+            let columns = query
+                .query_map([], |row| row.get::<_, String>(1))
+                .map_err(|e| e.to_string())?
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(|e| e.to_string())?;
+            columns.iter().any(|name| name == "due_at")
+        };
+        if !has_due_at {
+            conn.execute("ALTER TABLE tasks ADD COLUMN due_at TEXT", [])
+                .map_err(|e| e.to_string())?;
+        }
         let tx = conn.transaction().map_err(|e| e.to_string())?;
         let legacy = {
             let mut query = tx
@@ -115,7 +130,7 @@ impl Database {
             })
             .map_err(|e| e.to_string())?
             != 0;
-        let mut q=conn.prepare("SELECT id,title,is_completed,sort_order,priority,carried_over,completed_at FROM tasks WHERE day_id=?1 ORDER BY sort_order,id").map_err(|e|e.to_string())?;
+        let mut q=conn.prepare("SELECT id,title,is_completed,sort_order,priority,carried_over,completed_at,due_at FROM tasks WHERE day_id=?1 ORDER BY sort_order,id").map_err(|e|e.to_string())?;
         let tasks = q
             .query_map([id], |r| {
                 Ok(Task {
@@ -126,6 +141,7 @@ impl Database {
                     priority: r.get(4)?,
                     carried_over: r.get::<_, i64>(5)? != 0,
                     completed_at: r.get(6)?,
+                    due_at: r.get(7)?,
                 })
             })
             .map_err(|e| e.to_string())?
@@ -219,6 +235,7 @@ impl Database {
             priority: None,
             carried_over: carried,
             completed_at: None,
+            due_at: None,
         })
     }
     pub fn update_task(&self, t: &Task) -> Result<Task, String> {
@@ -228,7 +245,7 @@ impl Database {
         } else {
             None
         };
-        conn.execute("UPDATE tasks SET title=?2,is_completed=?3,sort_order=?4,priority=?5,carried_over=?6,completed_at=?7 WHERE id=?1",params![t.id,t.title,bool_i(t.is_completed),t.sort_order,t.priority,bool_i(t.carried_over),completed]).map_err(|e|e.to_string())?;
+        conn.execute("UPDATE tasks SET title=?2,is_completed=?3,sort_order=?4,priority=?5,carried_over=?6,completed_at=?7,due_at=?8 WHERE id=?1",params![t.id,t.title,bool_i(t.is_completed),t.sort_order,t.priority,bool_i(t.carried_over),completed,t.due_at]).map_err(|e|e.to_string())?;
         let day: i64 = conn
             .query_row("SELECT day_id FROM tasks WHERE id=?1", [t.id], |r| r.get(0))
             .map_err(|e| e.to_string())?;
@@ -252,6 +269,54 @@ impl Database {
         )
         .map_err(|e| e.to_string())?;
         Ok(())
+    }
+    pub fn reorder_tasks(&self, date: &str, ordered_ids: &[i64]) -> Result<Vec<Task>, String> {
+        let mut conn = self.0.lock().map_err(|e| e.to_string())?;
+        let day = Self::day_id(&conn, date)?;
+        let actual = {
+            let mut query = conn
+                .prepare("SELECT id FROM tasks WHERE day_id=?1")
+                .map_err(|e| e.to_string())?;
+            let ids = query
+                .query_map([day], |row| row.get::<_, i64>(0))
+                .map_err(|e| e.to_string())?
+                .collect::<Result<HashSet<_>, _>>()
+                .map_err(|e| e.to_string())?;
+            ids
+        };
+        let requested: HashSet<_> = ordered_ids.iter().copied().collect();
+        if actual != requested || requested.len() != ordered_ids.len() {
+            return Err("タスクの並び順が正しくありません".into());
+        }
+        let tx = conn.transaction().map_err(|e| e.to_string())?;
+        for (sort_order, id) in ordered_ids.iter().enumerate() {
+            tx.execute(
+                "UPDATE tasks SET sort_order=?2 WHERE id=?1 AND day_id=?3",
+                params![id, sort_order as i64, day],
+            )
+            .map_err(|e| e.to_string())?;
+        }
+        tx.commit().map_err(|e| e.to_string())?;
+        let mut query = conn
+            .prepare("SELECT id,title,is_completed,sort_order,priority,carried_over,completed_at,due_at FROM tasks WHERE day_id=?1 ORDER BY sort_order,id")
+            .map_err(|e| e.to_string())?;
+        let tasks = query
+            .query_map([day], |row| {
+                Ok(Task {
+                    id: row.get(0)?,
+                    title: row.get(1)?,
+                    is_completed: row.get::<_, i64>(2)? != 0,
+                    sort_order: row.get(3)?,
+                    priority: row.get(4)?,
+                    carried_over: row.get::<_, i64>(5)? != 0,
+                    completed_at: row.get(6)?,
+                    due_at: row.get(7)?,
+                })
+            })
+            .map_err(|e| e.to_string())?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| e.to_string())?;
+        Ok(tasks)
     }
     pub fn create_entry(&self, date: &str, body: &str, kind: &str) -> Result<Entry, String> {
         let conn = self.0.lock().map_err(|e| e.to_string())?;
@@ -756,6 +821,57 @@ mod tests {
             .is_none());
         drop(db);
         let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn migrates_task_deadlines_and_reorders_tasks_safely() {
+        let path = std::env::temp_dir().join(format!(
+            "daylog-task-migration-test-{}-{}.db",
+            std::process::id(),
+            Local::now().timestamp_nanos_opt().unwrap_or_default()
+        ));
+        {
+            let conn = Connection::open(&path).unwrap();
+            conn.execute_batch("PRAGMA foreign_keys=ON;
+                CREATE TABLE days(id INTEGER PRIMARY KEY AUTOINCREMENT,day_date TEXT NOT NULL UNIQUE,is_closed INTEGER NOT NULL DEFAULT 0,created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
+                CREATE TABLE tasks(id INTEGER PRIMARY KEY AUTOINCREMENT,day_id INTEGER NOT NULL,title TEXT NOT NULL,is_completed INTEGER NOT NULL DEFAULT 0,sort_order INTEGER NOT NULL DEFAULT 0,priority INTEGER,carried_over INTEGER NOT NULL DEFAULT 0,created_at TEXT NOT NULL,completed_at TEXT,FOREIGN KEY(day_id) REFERENCES days(id) ON DELETE CASCADE);
+                INSERT INTO days(id,day_date,created_at,updated_at) VALUES(1,'2026-09-06','now','now');
+                INSERT INTO tasks(id,day_id,title,sort_order,created_at) VALUES(1,1,'既存タスク',0,'now');").unwrap();
+        }
+        let db = open_test_database(&path);
+        let existing = db.get_day("2026-09-06").unwrap().tasks.remove(0);
+        assert_eq!(existing.title, "既存タスク");
+        assert!(existing.due_at.is_none());
+
+        let mut first = existing;
+        first.due_at = Some("2026-09-06T18:30:00+09:00".into());
+        db.update_task(&first).unwrap();
+        let second = db.create_task("2026-09-06", "追加タスク", false).unwrap();
+        let other = db.create_task("2026-09-07", "別日のタスク", false).unwrap();
+
+        let reordered = db
+            .reorder_tasks("2026-09-06", &[second.id, first.id])
+            .unwrap();
+        assert_eq!(
+            reordered.iter().map(|task| task.id).collect::<Vec<_>>(),
+            vec![second.id, first.id]
+        );
+        assert_eq!(
+            reordered[1].due_at.as_deref(),
+            Some("2026-09-06T18:30:00+09:00")
+        );
+        assert!(db
+            .reorder_tasks("2026-09-06", &[first.id, first.id])
+            .is_err());
+        assert!(db.reorder_tasks("2026-09-06", &[first.id]).is_err());
+        assert!(db
+            .reorder_tasks("2026-09-06", &[first.id, other.id])
+            .is_err());
+
+        drop(db);
+        let _ = std::fs::remove_file(&path);
+        let _ = std::fs::remove_file(path.with_extension("db-wal"));
+        let _ = std::fs::remove_file(path.with_extension("db-shm"));
     }
 
     #[test]

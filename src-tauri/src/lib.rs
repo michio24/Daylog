@@ -119,6 +119,7 @@ pub fn run() {
             commands::create_task,
             commands::update_task,
             commands::delete_task,
+            commands::reorder_tasks,
             commands::create_entry,
             commands::update_entry,
             commands::delete_entry,

@@ -16,8 +16,8 @@ describe("TimelineSection", () => {
       occurredAt: "2026-09-05T09:00:00+09:00"
     }]} disabled={false} onAdd={vi.fn()} onType={vi.fn()} onDelete={vi.fn()}/>);
 
-    expect(screen.getByText("最初の行")).toBeInTheDocument();
-    expect(container.querySelector(".timeline-content p")).toHaveTextContent("2行目\n3行目", { normalizeWhitespace: false });
+    expect(container.querySelector(".timeline-content strong")).not.toBeInTheDocument();
+    expect(container.querySelector(".timeline-content p")).toHaveTextContent("最初の行\n2行目\n3行目", { normalizeWhitespace: false });
   });
 
   it("submits a multiline draft without dropping lines", async () => {

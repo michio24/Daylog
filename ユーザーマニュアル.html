@@ -1,0 +1,463 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Daylogを初めて使う方向けのユーザーマニュアル">
+  <title>Daylog ユーザーマニュアル</title>
+  <style>
+    :root {
+      --ink: #28312d;
+      --muted: #66716b;
+      --paper: #fbfaf5;
+      --surface: #ffffff;
+      --line: #deded5;
+      --green: #376953;
+      --green-soft: #e7f0e9;
+      --gold: #b5842a;
+      --blue: #3b668c;
+      --shadow: 0 10px 35px rgba(39, 52, 44, .08);
+      --radius: 18px;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; scroll-padding-top: 24px; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--paper);
+      font-family: "Yu Gothic UI", "Meiryo", system-ui, sans-serif;
+      line-height: 1.85;
+      font-size: 16px;
+    }
+    a { color: var(--green); text-underline-offset: 3px; }
+    button { font: inherit; }
+    .skip-link {
+      position: fixed; left: 16px; top: -80px; z-index: 20;
+      padding: 10px 16px; color: #fff; background: var(--green); border-radius: 8px;
+    }
+    .skip-link:focus { top: 16px; }
+    .hero {
+      position: relative; overflow: hidden;
+      padding: 72px 24px 64px;
+      color: #fff;
+      background: linear-gradient(135deg, #27483b 0%, #3e705a 58%, #7b9367 100%);
+    }
+    .hero::after {
+      content: ""; position: absolute; width: 420px; height: 420px; right: -90px; top: -190px;
+      border: 1px solid rgba(255,255,255,.24); border-radius: 50%; box-shadow: 0 0 0 55px rgba(255,255,255,.04), 0 0 0 110px rgba(255,255,255,.03);
+    }
+    .hero-inner { position: relative; z-index: 1; width: min(1080px, 100%); margin: auto; }
+    .eyebrow { margin: 0 0 8px; font-size: 13px; font-weight: 700; letter-spacing: .16em; opacity: .82; }
+    h1 { margin: 0; font-family: Georgia, "Yu Mincho", serif; font-size: clamp(38px, 7vw, 72px); line-height: 1.15; letter-spacing: .02em; }
+    .hero-copy { max-width: 680px; margin: 20px 0 28px; font-size: clamp(17px, 2vw, 21px); }
+    .hero-links { display: flex; flex-wrap: wrap; gap: 10px; }
+    .hero-links a, .print-button {
+      display: inline-flex; align-items: center; min-height: 44px; padding: 8px 17px;
+      border: 1px solid rgba(255,255,255,.55); border-radius: 999px; color: #fff; background: rgba(255,255,255,.1);
+      text-decoration: none; cursor: pointer;
+    }
+    .hero-links a:first-child { color: var(--green); background: #fff; border-color: #fff; font-weight: 700; }
+    .layout { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 50px; width: min(1120px, calc(100% - 40px)); margin: 44px auto 90px; }
+    .toc { position: sticky; top: 24px; align-self: start; padding: 22px; border: 1px solid var(--line); border-radius: var(--radius); background: rgba(255,255,255,.85); }
+    .toc strong { display: block; margin-bottom: 10px; font-size: 14px; letter-spacing: .08em; }
+    .toc a { display: block; padding: 6px 10px; color: var(--muted); border-left: 2px solid var(--line); text-decoration: none; }
+    .toc a:hover, .toc a:focus { color: var(--green); border-color: var(--green); background: var(--green-soft); }
+    main { min-width: 0; }
+    section { margin-bottom: 74px; }
+    h2 { margin: 0 0 20px; font-family: Georgia, "Yu Mincho", serif; font-size: clamp(28px, 4vw, 40px); line-height: 1.35; }
+    h3 { margin: 28px 0 10px; font-size: 20px; }
+    p { margin: 8px 0 16px; }
+    .lead { font-size: 19px; color: #46514b; }
+    .start-card, .note, .warning {
+      padding: 22px 24px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow);
+    }
+    .start-card { display: grid; grid-template-columns: 62px 1fr; gap: 18px; align-items: start; }
+    .start-icon, .step-number {
+      display: grid; place-items: center; width: 52px; height: 52px; color: #fff; background: var(--green); border-radius: 50%; font-size: 23px; font-weight: 700;
+    }
+    .start-card h3 { margin: 0 0 3px; }
+    .start-card p { margin: 0; }
+    .screen-map {
+      overflow: hidden; margin-top: 24px; border: 1px solid #cfd4cd; border-radius: 16px; background: #f2f1eb; box-shadow: var(--shadow);
+    }
+    .fake-header { display: flex; align-items: center; gap: 18px; padding: 13px 18px; border-bottom: 1px solid #d7d8d0; background: #fff; }
+    .fake-logo { margin-right: auto; font-family: Georgia, serif; font-size: 20px; font-weight: 700; }
+    .fake-nav { display: flex; gap: 7px; }
+    .fake-nav span { padding: 5px 11px; border-radius: 99px; color: #5e6862; font-size: 13px; }
+    .fake-nav .active { color: #fff; background: var(--green); }
+    .fake-body { padding: 24px; }
+    .fake-title { width: 42%; height: 17px; margin-bottom: 18px; border-radius: 5px; background: #9daa9d; }
+    .fake-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+    .fake-panel { min-height: 96px; padding: 14px; border: 1px solid #d6d8d2; border-radius: 12px; background: #fff; }
+    .fake-panel strong { display: block; margin-bottom: 12px; }
+    .fake-line { height: 7px; margin: 8px 0; border-radius: 8px; background: #e1e5df; }
+    .fake-line.short { width: 65%; }
+    .caption { margin: 12px 0 0; color: var(--muted); font-size: 14px; text-align: center; }
+    .legend-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 20px; }
+    .legend-grid div { padding: 16px; border-top: 4px solid var(--green); border-radius: 10px; background: #fff; box-shadow: 0 5px 18px rgba(39,52,44,.06); }
+    .legend-grid strong { display: block; }
+    .legend-grid small { color: var(--muted); }
+    .day-flow { position: relative; margin: 26px 0; }
+    .day-flow::before { content: ""; position: absolute; left: 25px; top: 30px; bottom: 30px; width: 2px; background: #cbd8cf; }
+    .flow-step { position: relative; display: grid; grid-template-columns: 52px 1fr; gap: 22px; margin-bottom: 24px; }
+    .flow-step > div:last-child { padding: 3px 0 25px; }
+    .flow-step h3 { margin: 0 0 7px; }
+    .time { display: inline-block; margin-bottom: 5px; color: var(--gold); font-size: 13px; font-weight: 800; letter-spacing: .08em; }
+    ol, ul { padding-left: 1.5em; }
+    li { margin: 7px 0; }
+    .click { display: inline-block; padding: 1px 9px; border: 1px solid #bbc6be; border-radius: 6px; background: #fff; font-weight: 700; white-space: nowrap; }
+    kbd { display: inline-block; padding: 2px 7px; border: 1px solid #aeb7b1; border-bottom-width: 3px; border-radius: 5px; color: #33443a; background: #fff; font-family: inherit; font-size: .84em; font-weight: 700; white-space: nowrap; }
+    .example { margin: 14px 0; padding: 15px 18px; border-left: 4px solid var(--gold); background: #fffaf0; }
+    .example strong { color: #795914; }
+    .note { margin: 18px 0; border-left: 5px solid var(--blue); box-shadow: none; }
+    .note strong, .warning strong { display: block; margin-bottom: 4px; }
+    .warning { margin: 18px 0; border-left: 5px solid #b55a49; background: #fff9f7; box-shadow: none; }
+    .mini-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 20px 0; counter-reset: mini; }
+    .mini-steps div { position: relative; padding: 52px 18px 18px; border: 1px solid var(--line); border-radius: 13px; background: #fff; }
+    .mini-steps div::before { counter-increment: mini; content: counter(mini); position: absolute; left: 17px; top: 15px; display: grid; place-items: center; width: 27px; height: 27px; border-radius: 50%; color: #fff; background: var(--green); font-weight: 700; }
+    .details-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    details { border: 1px solid var(--line); border-radius: 13px; background: #fff; }
+    summary { padding: 17px 19px; cursor: pointer; font-weight: 700; }
+    details > div { padding: 0 19px 18px; color: #48544d; }
+    .shortcut-table { width: 100%; border-collapse: collapse; overflow: hidden; border: 1px solid var(--line); border-radius: 13px; background: #fff; }
+    .shortcut-table th, .shortcut-table td { padding: 13px 16px; border-bottom: 1px solid var(--line); text-align: left; }
+    .shortcut-table th { background: var(--green-soft); }
+    .shortcut-table tr:last-child td { border-bottom: 0; }
+    .checklist { padding: 20px 24px; border-radius: var(--radius); color: #fff; background: #315745; }
+    .checklist h3 { margin-top: 0; }
+    .checklist li::marker { content: "✓  "; color: #d9c277; font-weight: 900; }
+    .back-top { display: block; width: max-content; margin: 30px 0 0 auto; }
+    footer.page-footer { padding: 30px 20px; color: #6a756f; border-top: 1px solid var(--line); text-align: center; }
+    @media (max-width: 850px) {
+      .layout { grid-template-columns: 1fr; }
+      .toc { position: static; }
+      .toc nav { display: grid; grid-template-columns: 1fr 1fr; }
+      .legend-grid { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 560px) {
+      body { font-size: 15px; }
+      .hero { padding: 52px 20px 45px; }
+      .layout { width: min(100% - 28px, 1120px); margin-top: 24px; }
+      .fake-header { align-items: flex-start; flex-direction: column; gap: 8px; }
+      .fake-logo { margin: 0; }
+      .fake-nav { width: 100%; overflow-x: auto; }
+      .fake-body { padding: 15px; }
+      .fake-grid, .legend-grid, .mini-steps, .details-grid { grid-template-columns: 1fr; }
+      .flow-step { gap: 14px; }
+      .toc nav { grid-template-columns: 1fr; }
+      .shortcut-table th, .shortcut-table td { padding: 11px 9px; }
+    }
+    @media print {
+      :root { --paper: #fff; }
+      body { font-size: 11pt; }
+      .hero { padding: 32px 0; color: #000; background: #fff; border-bottom: 3px solid #376953; }
+      .hero-links, .toc, .back-top { display: none !important; }
+      .layout { display: block; width: 100%; margin: 28px 0; }
+      main { padding: 0 12mm; }
+      section { margin-bottom: 35px; break-inside: avoid; }
+      .start-card, .screen-map, details, .shortcut-table { box-shadow: none; }
+      details > div { display: block; }
+      a { color: #000; text-decoration: none; }
+      .hero::after { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#main">本文へ移動</a>
+  <header class="hero">
+    <div class="hero-inner">
+      <p class="eyebrow">DAYLOG USER GUIDE</p>
+      <h1>Daylog<br>ユーザーマニュアル</h1>
+      <p class="hero-copy">朝に予定を書き、日中に出来事を残し、夜に一日を振り返る。初めての方でも、このページを上から順に読めば使えます。</p>
+      <div class="hero-links">
+        <a href="#daily-flow">一日の流れを見る</a>
+        <a href="#first-use">最初の操作を見る</a>
+        <button class="print-button" type="button" onclick="window.print()">印刷する</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="toc" aria-label="目次">
+      <strong>目次</strong>
+      <nav>
+        <a href="#about">Daylogとは</a>
+        <a href="#first-use">はじめに</a>
+        <a href="#screens">画面の見方</a>
+        <a href="#daily-flow">一日の流れ</a>
+        <a href="#notes">メモの使い方</a>
+        <a href="#past">過去の記録</a>
+        <a href="#settings">設定とバックアップ</a>
+        <a href="#shortcuts">便利なキー操作</a>
+        <a href="#trouble">困ったとき</a>
+      </nav>
+    </aside>
+
+    <main id="main">
+      <section id="about">
+        <h2>Daylogとは</h2>
+        <p class="lead">Daylogは、毎日の予定・出来事・メモ・振り返りを、日付ごとにまとめて残すWindows用の日記アプリです。</p>
+        <div class="start-card">
+          <div class="start-icon" aria-hidden="true">✓</div>
+          <div>
+            <h3>基本は「書くだけ」で大丈夫</h3>
+            <p>入力した内容は自動的に保存されます。日記を外部サービスへ送信しないため、インターネットにつながっていないときも基本機能を使えます。</p>
+          </div>
+        </div>
+        <div class="note">
+          <strong>このマニュアルで使う言葉</strong>
+          「クリック」は、マウスの左ボタンを1回押す操作です。「入力欄」は、文字を打ち込める四角い場所です。
+        </div>
+      </section>
+
+      <section id="first-use">
+        <h2>はじめに</h2>
+        <div class="mini-steps">
+          <div><strong>Daylogを開く</strong><br>Daylog.exeをダブルクリックします。</div>
+          <div><strong>「今日」を確認</strong><br>起動すると、今日の日付の画面が表示されます。</div>
+          <div><strong>1つ書いてみる</strong><br>「タスクを追加」に、今日やることを入力します。</div>
+        </div>
+        <p>入力したらキーボードの <kbd>Enter</kbd> を押してください。追加されたタスクが画面に表示されれば、最初の操作は完了です。</p>
+        <div class="warning">
+          <strong>「WindowsによってPCが保護されました」と表示された場合</strong>
+          配布元が信頼できることを確認してから操作してください。出所がわからないファイルは開かないでください。
+        </div>
+      </section>
+
+      <section id="screens">
+        <h2>画面の見方</h2>
+        <p>画面上部の名前をクリックすると、4つの画面を切り替えられます。</p>
+        <figure class="screen-map" aria-label="Daylogの画面構成図">
+          <div class="fake-header">
+            <div class="fake-logo">Daylog</div>
+            <div class="fake-nav"><span class="active">今日</span><span>履歴</span><span>検索</span><span>設定</span></div>
+          </div>
+          <div class="fake-body">
+            <div class="fake-title"></div>
+            <div class="fake-grid">
+              <div class="fake-panel"><strong>今日やること</strong><div class="fake-line"></div><div class="fake-line short"></div></div>
+              <div class="fake-panel"><strong>今日のメモ</strong><div class="fake-line"></div><div class="fake-line short"></div></div>
+              <div class="fake-panel"><strong>今日の記録</strong><div class="fake-line"></div><div class="fake-line"></div></div>
+              <div class="fake-panel"><strong>今日を振り返る</strong><div class="fake-line short"></div><div class="fake-line"></div></div>
+            </div>
+          </div>
+        </figure>
+        <p class="caption">図は画面の位置関係を簡略化したものです。</p>
+        <div class="legend-grid">
+          <div><strong>今日</strong><small>今日の予定と記録を書く</small></div>
+          <div><strong>履歴</strong><small>カレンダーから過去を見る</small></div>
+          <div><strong>検索</strong><small>言葉を使って記録を探す</small></div>
+          <div><strong>設定</strong><small>AIやバックアップを設定する</small></div>
+        </div>
+        <h3>見やすさを変える</h3>
+        <p>画面右上の <span class="click">1カラム</span> <span class="click">2カラム</span> <span class="click">3カラム</span> で並び方を変更できます。最初は、上下に順番に表示される「1カラム」がおすすめです。丸い色のボタンから配色も変更できます。</p>
+      </section>
+
+      <section id="daily-flow">
+        <h2>一日の流れ</h2>
+        <p class="lead">すべて埋める必要はありません。その日に必要なところだけ使えます。</p>
+        <div class="day-flow">
+          <article class="flow-step">
+            <div class="step-number">1</div>
+            <div>
+              <span class="time">朝・仕事を始める前</span>
+              <h3>今日やることを決める</h3>
+              <ol>
+                <li>上部の <span class="click">今日</span> をクリックします。</li>
+                <li>「今日やること」の <span class="click">タスクを追加</span> に予定を入力します。</li>
+                <li><kbd>Enter</kbd> を押して追加します。予定が複数あれば繰り返します。</li>
+              </ol>
+              <div class="example"><strong>入力例：</strong> 10時までに見積書を確認する</div>
+              <p>終わった予定は、左側の丸い印をクリックします。チェックが付き、完了した数が「1 / 3」のように表示されます。</p>
+              <p>登録した予定は、左端のつまみをドラッグして順番を変えられます。鉛筆マークをクリックすると、名前の修正と期限の設定・解除ができます。期限を過ぎた未完了の予定には <strong>🔥</strong> が表示されます。</p>
+            </div>
+          </article>
+
+          <article class="flow-step">
+            <div class="step-number">2</div>
+            <div>
+              <span class="time">日中・何かあったとき</span>
+              <h3>出来事を短く記録する</h3>
+              <ol>
+                <li>「今日の記録」の「今あったことを書く…」をクリックします。</li>
+                <li>出来事や気づきを入力します。</li>
+                <li>必要なら <span class="click">仕事</span> <span class="click">体調</span> などの種類を選びます。</li>
+                <li><kbd>Ctrl</kbd> を押しながら <kbd>Enter</kbd> を押して登録します。</li>
+              </ol>
+              <div class="example"><strong>入力例：</strong> 14:00 お客様から了承の連絡。明日発送する。</div>
+              <p>時刻は自動で付きます。登録後の種類は、記録の横にあるタグをクリックすると変更できます。</p>
+            </div>
+          </article>
+
+          <article class="flow-step">
+            <div class="step-number">3</div>
+            <div>
+              <span class="time">考えを整理したいとき</span>
+              <h3>詳しい内容をメモに書く</h3>
+              <ol>
+                <li>「今日のメモ」の <span class="click">＋ メモを追加</span> をクリックします。</li>
+                <li>上の欄にタイトル、下の広い欄に本文を入力します。</li>
+                <li>書き終えたら「保存済み」を確認し、<span class="click">閉じる</span> をクリックします。</li>
+              </ol>
+              <p>長い文章、会議メモ、画像や資料をまとめたいときに便利です。詳しくは「メモの使い方」をご覧ください。</p>
+            </div>
+          </article>
+
+          <article class="flow-step">
+            <div class="step-number">4</div>
+            <div>
+              <span class="time">夜・仕事や一日の終わり</span>
+              <h3>今日を振り返る</h3>
+              <p>「今日を振り返る」に、次の3項目を入力します。短い一言だけでも十分です。</p>
+              <ul>
+                <li><strong>今日よかったこと：</strong>うまくいったこと</li>
+                <li><strong>うまくいかなかったこと：</strong>困ったことや改善したいこと</li>
+                <li><strong>明日に持ち越すこと：</strong>明日の自分への申し送り</li>
+              </ul>
+              <div class="example"><strong>入力例：</strong> 見積書を早めに確認できた／午後は集中が切れた／発送準備を明日の最初に行う</div>
+            </div>
+          </article>
+
+          <article class="flow-step">
+            <div class="step-number">5</div>
+            <div>
+              <span class="time">最後の操作</span>
+              <h3>一日を完了する</h3>
+              <ol>
+                <li>入力欄の下に「保存済み」と表示されていることを確認します。</li>
+                <li><span class="click">今日を完了</span> をクリックします。</li>
+              </ol>
+              <p>完了後は内容が書き換わらない状態になります。修正したい場合は、画面上部の <span class="click">再編集</span> をクリックしてください。</p>
+              <div class="note">
+                <strong>「今日を完了」は必須ではありません</strong>
+                まだ書き足す予定がある場合は、完了せずにDaylogを閉じても構いません。入力済みの内容は保存されます。
+              </div>
+            </div>
+          </article>
+        </div>
+        <div class="checklist">
+          <h3>これだけ覚えれば使えます</h3>
+          <ul>
+            <li>朝：「今日やること」を書く</li>
+            <li>日中：「今日の記録」に短く残す</li>
+            <li>夜：「今日を振り返る」を書く</li>
+          </ul>
+        </div>
+      </section>
+
+      <section id="notes">
+        <h2>メモの使い方</h2>
+        <h3>文字を読みやすく整える</h3>
+        <p>メモ編集画面の上部には、見出し・太字・箇条書き・チェックリストなどのボタンがあります。整えたい文字をマウスで選び、使いたいボタンをクリックします。<span class="click">表示</span> をクリックすると、仕上がりを確認できます。</p>
+        <h3>画像やファイルを付ける</h3>
+        <ol>
+          <li>画像なら <span class="click">画像</span>、その他の資料なら <span class="click">添付</span> をクリックします。</li>
+          <li>表示された画面でファイルを選び、開きます。</li>
+          <li><span class="click">表示</span> に切り替えて、正しく追加されたか確認します。</li>
+        </ol>
+        <p>ファイルを本文へドラッグして置く方法や、コピーした画像を貼り付ける方法も使えます。</p>
+        <div class="warning">
+          <strong>削除は元に戻せません</strong>
+          タスクや記録の「×」、メモの「メモを削除」を押す前に、消してよい内容か確認してください。
+        </div>
+        <h3>別のファイルとして残す</h3>
+        <p>メモ画面または一日の振り返りにある <span class="click">Markdownで保存</span> をクリックすると、保存場所を選び、一般的なテキストファイル（.md）として書き出せます。添付ファイルがある場合は一緒に書き出されます。</p>
+      </section>
+
+      <section id="past">
+        <h2>過去の記録を見る・探す</h2>
+        <div class="details-grid">
+          <details open>
+            <summary>日付から探す</summary>
+            <div>
+              <ol>
+                <li>上部の <span class="click">履歴</span> をクリックします。</li>
+                <li>カレンダーの日付をクリックします。</li>
+                <li>右側の内容を確認します。編集する場合は「この日を開く」をクリックします。</li>
+              </ol>
+              色が濃い日ほど、記録が多くあります。
+            </div>
+          </details>
+          <details open>
+            <summary>言葉から探す</summary>
+            <div>
+              <ol>
+                <li>上部の <span class="click">検索</span> をクリックします。</li>
+                <li>探したい言葉を入力します。</li>
+                <li>表示された結果をクリックすると、その日の画面が開きます。</li>
+              </ol>
+              タスク・記録・メモ・振り返りをまとめて検索します。
+            </div>
+          </details>
+        </div>
+        <h3>前の日・次の日を開く</h3>
+        <p>「今日」画面の日付の左右にある <span class="click">‹</span> と <span class="click">›</span> をクリックします。3カラム表示では、左側のカレンダーから日付を選ぶこともできます。</p>
+      </section>
+
+      <section id="settings">
+        <h2>設定とバックアップ</h2>
+        <h3>大切な記録をバックアップする</h3>
+        <p>Daylogは起動時に1日1回、自動でバックアップを作ります。すぐに作りたい場合は、上部の <span class="click">設定</span> →「バックアップ」の <span class="click">今すぐ作成</span> をクリックします。「作成しました」と保存場所が表示されたら完了です。</p>
+        <div class="note">
+          <strong>おすすめ</strong>
+          パソコンの故障に備え、Daylogのフォルダー自体も、定期的にUSBメモリーなど別の場所へコピーしてください。
+        </div>
+        <h3>AIによるまとめ（必要な方だけ）</h3>
+        <p>AI機能は最初はオフです。利用には、対応するAIプログラムとモデルファイルの準備が必要です。設定済みの場合は、振り返り画面の <span class="click">AIで今日をまとめる</span> から実行できます。</p>
+        <p>AIが提案した「明日への候補」は、<span class="click">＋ 明日のタスクへ</span> をクリックすると翌日の予定に追加されます。AIを使わなくても、日記の基本機能はすべて利用できます。</p>
+        <h3>祝日を更新する</h3>
+        <p><span class="click">設定</span> →「祝日データ」の <span class="click">公式データから更新</span> をクリックします。この操作のときだけ、内閣府のWebサイトへ接続します。</p>
+      </section>
+
+      <section id="shortcuts">
+        <h2>便利なキー操作</h2>
+        <p>慣れるまでは使わなくても問題ありません。<kbd>Ctrl</kbd> を押したまま、もう一方のキーを1回押します。</p>
+        <table class="shortcut-table">
+          <thead><tr><th scope="col">キー</th><th scope="col">できること</th></tr></thead>
+          <tbody>
+            <tr><td><kbd>Ctrl</kbd> + <kbd>T</kbd></td><td>タスク入力欄へ移動</td></tr>
+            <tr><td><kbd>Ctrl</kbd> + <kbd>Enter</kbd></td><td>「今日の記録」を登録</td></tr>
+            <tr><td><kbd>Ctrl</kbd> + <kbd>M</kbd></td><td>今日のメモへ移動</td></tr>
+            <tr><td><kbd>Ctrl</kbd> + <kbd>R</kbd></td><td>振り返りへ移動</td></tr>
+            <tr><td><kbd>Ctrl</kbd> + <kbd>F</kbd></td><td>検索画面を開く</td></tr>
+            <tr><td><kbd>Ctrl</kbd> + <kbd>S</kbd></td><td>現在の入力を確定する</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="trouble">
+        <h2>困ったとき</h2>
+        <div class="details-grid">
+          <details>
+            <summary>文字を入力できません</summary>
+            <div>その日が「完了済み」になっていないか確認します。完了済みの場合は、画面上部の「再編集」をクリックしてください。</div>
+          </details>
+          <details>
+            <summary>入力した内容が心配です</summary>
+            <div>メモや振り返りでは「保存済み」の表示を確認してください。エラーが表示された場合は、Daylogを閉じず、表示された文面を控えてください。</div>
+          </details>
+          <details>
+            <summary>今日以外の日付を開きました</summary>
+            <div>上部の「今日」をクリックします。今日の日付の画面へ戻ります。</div>
+          </details>
+          <details>
+            <summary>画面が狭くて見づらいです</summary>
+            <div>画面右上で「1カラム」を選び、Daylogのウィンドウを大きくしてください。</div>
+          </details>
+          <details>
+            <summary>AIのボタンがありません</summary>
+            <div>AIは任意機能です。「設定」でローカルAIを有効にし、正しいモデルファイルを指定した場合だけ利用できます。</div>
+          </details>
+          <details>
+            <summary>アプリを閉じても大丈夫ですか</summary>
+            <div>通常はそのまま閉じて構いません。終了前に入力内容が保存されます。保存エラーが表示されているときは閉じないでください。</div>
+          </details>
+        </div>
+        <a class="back-top" href="#main">ページの先頭へ戻る ↑</a>
+      </section>
+    </main>
+  </div>
+
+  <footer class="page-footer">Daylog ユーザーマニュアル</footer>
+</body>
+</html>

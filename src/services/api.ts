@@ -9,6 +9,7 @@ export const api = {
   createTask: (date: string, title: string, carriedOver = false) => call<Task>("create_task", { date, title, carriedOver }),
   updateTask: (task: Task) => call<Task>("update_task", { task }),
   deleteTask: (id: number) => call<void>("delete_task", { id }),
+  reorderTasks: (date: string, orderedIds: number[]) => call<Task[]>("reorder_tasks", { date, orderedIds }),
   createEntry: (date: string, body: string, entryType: string) => call<Entry>("create_entry", { date, body, entryType }),
   updateEntry: (entry: Entry) => call<Entry>("update_entry", { entry }),
   deleteEntry: (id: number) => call<void>("delete_entry", { id }),
