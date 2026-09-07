@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import "@testing-library/jest-dom/vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Entry } from "../types";
 import { TimelineSection } from "./TimelineSection";
@@ -18,7 +18,7 @@ const setup = (entries: Entry[] = [entry], disabled = false) => {
   return { ...result, onAdd, onUpdate, onType, onDelete, onError };
 };
 
-afterEach(cleanup);
+afterEach(() => { cleanup(); vi.useRealTimers(); });
 
 describe("TimelineSection", () => {
   it("shows every line of a multiline entry", () => {
@@ -33,6 +33,18 @@ describe("TimelineSection", () => {
     fireEvent.change(input, { target: { value: "最初の行\n2行目" } });
     fireEvent.keyDown(input, { key: "Enter", ctrlKey: true });
     await waitFor(() => expect(onAdd).toHaveBeenCalledWith("最初の行\n2行目", "memo"));
+  });
+
+  it("keeps the quick-entry clock aligned with the current minute", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 8, 7, 22, 16, 45));
+    const { container } = setup([]);
+    const clock = container.querySelector(".quick-entry time");
+    expect(clock).toHaveTextContent("22:16");
+
+    act(() => { vi.advanceTimersByTime(15_000); });
+
+    expect(clock).toHaveTextContent("22:17");
   });
 
   it("edits unified content and its existing local time", async () => {

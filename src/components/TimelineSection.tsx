@@ -35,6 +35,7 @@ interface Props {
 export function TimelineSection({ entries, dayDate, disabled, onAdd, onUpdate, onType, onDelete, onError }: Props) {
   const [draft, setDraft] = useState("");
   const [type, setType] = useState("memo");
+  const [currentTime, setCurrentTime] = useState(() => Date.now());
   const [editing, setEditing] = useState<Entry | null>(null);
   const [editBody, setEditBody] = useState("");
   const [editDate, setEditDate] = useState(dayDate);
@@ -45,6 +46,23 @@ export function TimelineSection({ entries, dayDate, disabled, onAdd, onUpdate, o
   const [saving, setSaving] = useState(false);
   const dialog = useRef<HTMLDivElement>(null);
   const opener = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    let timer: number;
+    const syncClock = () => {
+      const current = Date.now();
+      setCurrentTime(current);
+      window.clearTimeout(timer);
+      timer = window.setTimeout(syncClock, 60_000 - current % 60_000);
+    };
+    const onVisibilityChange = () => { if (!document.hidden) syncClock(); };
+    syncClock();
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      window.clearTimeout(timer);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, []);
 
   useEffect(() => {
     if (!editing) return;
@@ -90,7 +108,7 @@ export function TimelineSection({ entries, dayDate, disabled, onAdd, onUpdate, o
     } catch (error) { setEditError("保存できませんでした"); onError(String(error)); }
     finally { setSaving(false); }
   };
-  const now = new Date();
+  const now = new Date(currentTime);
   const time = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
   return <section className="card timeline-section">
     <div className="section-heading"><h2>今日の記録</h2><span>{entries.length} 件</span></div>
