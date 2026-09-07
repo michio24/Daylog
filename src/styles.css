@@ -140,3 +140,23 @@ input::placeholder,textarea::placeholder { color:color-mix(in srgb,var(--ink-3) 
 @media(max-width:1040px){.page-inner.three-wide{max-width:1120px}.today-grid.three{grid-template-columns:1.06fr 1fr}.today-grid.three .calendar-column{display:none}}
 @media(max-width:900px){.today-grid.three{display:flex;flex-direction:column}}
 .note-editor-export-message { min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink-3);font-size:11px; }
+
+/* Calendar: compact and flat, with record density carried by the theme accent. */
+.app-shell[data-theme] .calendar { padding:20px;background:var(--surface);border-color:var(--line);border-radius:var(--radius);clip-path:none;box-shadow:var(--shadow); }
+.app-shell[data-theme] .calendar::before,.app-shell[data-theme] .calendar::after { content:none; }
+.app-shell .calendar:hover { transform:none;border-color:var(--line);box-shadow:var(--shadow); }
+.calendar-heading { justify-content:center;margin-bottom:12px; }.calendar-heading>div { gap:12px; }.calendar-heading h2 { min-width:132px;margin:0;font:600 16px var(--display-font);letter-spacing:.02em; }
+.calendar-heading button { width:28px;height:28px;padding:0;border:0;border-radius:6px;background:transparent;color:var(--ink-3);font-size:19px;line-height:1;box-shadow:none; }.calendar-heading button:hover:not(:disabled) { background:var(--surface-3);color:var(--ink);transform:none;box-shadow:none; }
+.weekdays,.calendar-cells { gap:4px; }.weekdays { margin-bottom:3px; }.weekdays span { padding:3px 0;color:var(--ink-3);font-size:10px;font-weight:600;letter-spacing:0; }
+.calendar-cells>span,.calendar-cells button { min-height:34px;height:34px; }.calendar-cells button { padding:0;border:0;border-radius:6px;background:transparent;color:var(--ink-2);font:600 11px ui-monospace,"SFMono-Regular",Consolas,monospace;box-shadow:none;text-shadow:none; }
+.calendar-cells button:hover:not(:disabled) { z-index:1;background:var(--surface-2);color:var(--ink);transform:none;box-shadow:inset 0 0 0 1px var(--line-2); }
+.calendar-cells .level-1 { background:color-mix(in srgb,var(--accent) 18%,var(--surface));color:var(--ink); }.calendar-cells .level-2 { background:color-mix(in srgb,var(--accent) 34%,var(--surface));color:var(--ink); }.calendar-cells .level-3 { background:color-mix(in srgb,var(--accent) 55%,var(--surface));color:var(--ink);box-shadow:none; }
+.weekdays .sunday,.calendar-cells button:is(.sunday,.holiday) { color:color-mix(in srgb,var(--calendar-holiday) 82%,var(--ink));font-weight:700;text-shadow:none; }.weekdays .saturday,.calendar-cells button.saturday:not(.holiday) { color:color-mix(in srgb,var(--calendar-saturday) 82%,var(--ink));font-weight:700;text-shadow:none; }
+.calendar-cells button.selected { z-index:2;border:0;background:var(--accent);color:var(--surface);box-shadow:none;text-shadow:none; }.calendar-cells button.selected:is(.sunday,.saturday,.holiday) { color:var(--surface);-webkit-text-fill-color:var(--surface);text-shadow:none; }
+.calendar-cells button.today:not(.selected) { box-shadow:inset 0 0 0 1px var(--accent); }.calendar-cells button.today:not(.selected)::before { content:none; }
+.calendar-cells button.custom-holiday::after { right:4px;top:4px;width:3px;height:3px;box-shadow:none; }
+.calendar.is-loading .calendar-cells { opacity:.55; }
+.calendar-footer { align-items:center;margin-top:14px;padding-top:12px; }.calendar-stats strong { color:var(--ink);font:700 20px ui-monospace,"SFMono-Regular",Consolas,monospace;line-height:1; }.calendar-stats span { font-size:10px; }
+.holiday-settings-button { padding:5px 9px;border:1px solid var(--line);border-radius:6px;background:transparent;font-size:10px;font-weight:500; }.holiday-settings-button:hover:not(:disabled) { background:var(--surface-3);transform:none;box-shadow:none; }
+.compact-calendar { padding:15px; }.compact-calendar .calendar-heading { margin-bottom:8px; }.compact-calendar .calendar-heading button { width:24px;height:24px; }.compact-calendar .calendar-heading h2 { font-size:14px; }.compact-calendar .calendar-cells>span,.compact-calendar .calendar-cells button { min-height:29px;height:29px;border-radius:5px; }.compact-calendar .calendar-footer { margin-top:11px;padding-top:10px; }
+@media(max-width:560px){.app-shell[data-theme] .calendar{padding:16px}.calendar-heading h2{min-width:112px;font-size:15px}.calendar-cells>span,.calendar-cells button{min-height:32px;height:32px}}

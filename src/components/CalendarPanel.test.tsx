@@ -35,6 +35,7 @@ describe("CalendarPanel", () => {
     const today = localDateKey();
     render(<CalendarPanel selectedDate={today} onSelectDate={() => undefined}/>);
     await waitFor(() => expect(api.calendar).toHaveBeenCalled());
+    expect(screen.getByRole("button", { name: today })).toHaveAttribute("aria-current", "date");
     expect(screen.getByRole("button", { name: "次の月" })).toBeDisabled();
   });
 

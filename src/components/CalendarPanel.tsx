@@ -25,6 +25,7 @@ const monthStart = (dateKey?: string) => {
 
 export function CalendarPanel({ selectedDate, onSelectDate, onHolidayChange, disabled = false, allowFutureMonths = false, compact = false, onError }: Props) {
   const now = new Date();
+  const today = localDateKey(now);
   const [cursor, setCursor] = useState(() => monthStart(selectedDate));
   const [days, setDays] = useState<CalendarDay[]>([]);
   const [loading, setLoading] = useState(false);
@@ -135,20 +136,20 @@ export function CalendarPanel({ selectedDate, onSelectDate, onHolidayChange, dis
   };
 
   const futureMonthBlocked = year > now.getFullYear() || (year === now.getFullYear() && month >= now.getMonth() + 1);
-  return <section className={`card calendar${compact ? " compact-calendar" : ""}`} aria-label="カレンダー">
+  return <section className={`card calendar${compact ? " compact-calendar" : ""}${loading ? " is-loading" : ""}`} aria-label="カレンダー" aria-busy={loading}>
     <div className="calendar-heading"><div>
       <button type="button" aria-label="前の月" disabled={disabled || loading} onClick={() => setCursor(new Date(year, month - 2, 1))}>‹</button>
       <h2>{year}年 {month}月</h2>
       <button type="button" aria-label="次の月" disabled={disabled || loading || (!allowFutureMonths && futureMonthBlocked)} onClick={() => setCursor(new Date(year, month, 1))}>›</button>
-    </div><small>色が濃いほど記録が多い</small></div>
+    </div></div>
     <div className="weekdays">{["日", "月", "火", "水", "木", "金", "土"].map((weekday, index) => <span key={weekday} className={index === 0 ? "sunday" : index === 6 ? "saturday" : ""}>{weekday}</span>)}</div>
     <div className="calendar-cells">{cells.map((cell, index) => {
-      if (!cell) return <span key={`blank-${index}`}/>;
+      if (!cell) return <span key={`blank-${index}`} aria-hidden="true"/>;
       const names = formatHolidayNames(cell.stat?.nationalHolidayName, cell.stat?.customHolidayName);
       const isHoliday = Boolean(names);
-      const className = [`level-${Math.min(3, cell.stat?.count || 0)}`, selectedDate === cell.date ? "selected" : "", cell.weekday === 0 ? "sunday" : "", cell.weekday === 6 ? "saturday" : "", isHoliday ? "holiday" : "", cell.stat?.customHolidayName ? "custom-holiday" : ""].filter(Boolean).join(" ");
+      const className = [`level-${Math.min(3, cell.stat?.count || 0)}`, selectedDate === cell.date ? "selected" : "", today === cell.date ? "today" : "", cell.weekday === 0 ? "sunday" : "", cell.weekday === 6 ? "saturday" : "", isHoliday ? "holiday" : "", cell.stat?.customHolidayName ? "custom-holiday" : ""].filter(Boolean).join(" ");
       const label = names ? `${cell.date} ${names}` : cell.date;
-      return <button type="button" key={cell.date} aria-label={label} title={names || undefined} disabled={disabled || loading} className={className} onClick={() => void onSelectDate(cell.date)}>{Number(cell.date.slice(-2))}</button>;
+      return <button type="button" key={cell.date} aria-label={label} aria-current={today === cell.date ? "date" : undefined} aria-pressed={selectedDate === cell.date} title={names || undefined} disabled={disabled || loading} className={className} onClick={() => void onSelectDate(cell.date)}>{Number(cell.date.slice(-2))}</button>;
     })}</div>
     <div className="calendar-footer"><div className="calendar-stats"><strong>{days.filter((day) => day.count).length}</strong><span>{month}月の記録日数</span></div><button type="button" className="holiday-settings-button" disabled={disabled || loading || !selectedDate} onClick={(event) => openHolidayEditor(event.currentTarget)}>選択日の休日設定</button></div>
     {holidayEditorOpen && selectedDate && createPortal(<div className="holiday-editor-backdrop"><div ref={dialogRef} className="holiday-editor" role="dialog" aria-modal="true" aria-labelledby="holiday-editor-title">
