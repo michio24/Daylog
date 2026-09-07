@@ -386,7 +386,7 @@ CREATE TABLE tasks (
 CREATE TABLE entries (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
     day_id          INTEGER NOT NULL,
-    entry_type      TEXT NOT NULL DEFAULT 'memo',
+    icon            TEXT NOT NULL DEFAULT '',
     title           TEXT,
     body            TEXT NOT NULL,
     occurred_at     TEXT NOT NULL,
@@ -560,6 +560,16 @@ Enter：
 Ctrl + Enter：
 
 登録。
+
+記録には任意で次のアイコンを1つ付与できる。
+
+```text
+会話 / 完了 / 休憩 / ひらめき / 注意
+```
+
+表示は淡い色の角丸タイルと単色の線画SVGを組み合わせる。
+
+登録後もアイコンの変更・解除が可能。
 
 登録時点の時刻を
 
@@ -1917,8 +1927,6 @@ Monthly Review
 今日の一行一覧
 
 アイデア発掘
-
-タグ
 
 Markdown Export
 

@@ -5,6 +5,8 @@ use chrono::{DateTime, Local, NaiveDate};
 use tauri::State;
 use tauri_plugin_opener::OpenerExt;
 
+const ENTRY_ICONS: [&str; 6] = ["", "message", "done", "break", "idea", "alert"];
+
 #[tauri::command]
 pub fn get_today(db: State<Database>) -> Result<DayData, String> {
     db.get_day(&Local::now().format("%Y-%m-%d").to_string())
@@ -56,13 +58,16 @@ pub fn reorder_tasks(
 pub fn create_entry(
     date: String,
     body: String,
-    entry_type: String,
+    icon: String,
     db: State<Database>,
 ) -> Result<Entry, String> {
     if body.trim().is_empty() {
         return Err("記録が空です".into());
     }
-    db.create_entry(&date, body.trim(), &entry_type)
+    if !ENTRY_ICONS.contains(&icon.as_str()) {
+        return Err("記録のアイコンが正しくありません".into());
+    }
+    db.create_entry(&date, body.trim(), &icon)
 }
 #[tauri::command]
 pub fn update_entry(
@@ -73,6 +78,9 @@ pub fn update_entry(
     entry.body = entry.body.trim().to_string();
     if entry.body.is_empty() {
         return Err("記録が空です".into());
+    }
+    if !ENTRY_ICONS.contains(&entry.icon.as_str()) {
+        return Err("記録のアイコンが正しくありません".into());
     }
     let occurred_at = DateTime::parse_from_rfc3339(&entry.occurred_at)
         .map_err(|_| "記録日時の形式が正しくありません".to_string())?;

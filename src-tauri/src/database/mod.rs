@@ -39,7 +39,7 @@ impl Database {
         conn.execute_batch("PRAGMA foreign_keys=ON; PRAGMA journal_mode=WAL;
       CREATE TABLE IF NOT EXISTS days(id INTEGER PRIMARY KEY AUTOINCREMENT,day_date TEXT NOT NULL UNIQUE,is_closed INTEGER NOT NULL DEFAULT 0,created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS tasks(id INTEGER PRIMARY KEY AUTOINCREMENT,day_id INTEGER NOT NULL,title TEXT NOT NULL,is_completed INTEGER NOT NULL DEFAULT 0,sort_order INTEGER NOT NULL DEFAULT 0,priority INTEGER,carried_over INTEGER NOT NULL DEFAULT 0,created_at TEXT NOT NULL,completed_at TEXT,due_at TEXT,FOREIGN KEY(day_id) REFERENCES days(id) ON DELETE CASCADE);
-      CREATE TABLE IF NOT EXISTS entries(id INTEGER PRIMARY KEY AUTOINCREMENT,day_id INTEGER NOT NULL,entry_type TEXT NOT NULL DEFAULT 'memo',title TEXT,body TEXT NOT NULL,occurred_at TEXT NOT NULL,created_at TEXT NOT NULL,updated_at TEXT NOT NULL,FOREIGN KEY(day_id) REFERENCES days(id) ON DELETE CASCADE);
+      CREATE TABLE IF NOT EXISTS entries(id INTEGER PRIMARY KEY AUTOINCREMENT,day_id INTEGER NOT NULL,icon TEXT NOT NULL DEFAULT '',title TEXT,body TEXT NOT NULL,occurred_at TEXT NOT NULL,created_at TEXT NOT NULL,updated_at TEXT NOT NULL,FOREIGN KEY(day_id) REFERENCES days(id) ON DELETE CASCADE);
       CREATE TABLE IF NOT EXISTS daily_notes(id INTEGER PRIMARY KEY AUTOINCREMENT,day_id INTEGER NOT NULL UNIQUE,markdown TEXT NOT NULL DEFAULT '',created_at TEXT NOT NULL,updated_at TEXT NOT NULL,FOREIGN KEY(day_id) REFERENCES days(id) ON DELETE CASCADE);
       CREATE TABLE IF NOT EXISTS note_cards(id INTEGER PRIMARY KEY AUTOINCREMENT,day_id INTEGER NOT NULL,title TEXT NOT NULL DEFAULT '',markdown TEXT NOT NULL DEFAULT '',sort_order INTEGER NOT NULL DEFAULT 0,created_at TEXT NOT NULL,updated_at TEXT NOT NULL,FOREIGN KEY(day_id) REFERENCES days(id) ON DELETE CASCADE);
       CREATE TABLE IF NOT EXISTS attachments(id TEXT PRIMARY KEY,original_name TEXT NOT NULL,stored_name TEXT NOT NULL UNIQUE,mime_type TEXT NOT NULL,size_bytes INTEGER NOT NULL,is_image INTEGER NOT NULL DEFAULT 0,created_at TEXT NOT NULL,orphaned_at TEXT);
@@ -66,6 +66,34 @@ impl Database {
             conn.execute("ALTER TABLE tasks ADD COLUMN due_at TEXT", [])
                 .map_err(|e| e.to_string())?;
         }
+        let entry_columns = {
+            let mut query = conn
+                .prepare("PRAGMA table_info(entries)")
+                .map_err(|e| e.to_string())?;
+            let columns = query
+                .query_map([], |row| row.get::<_, String>(1))
+                .map_err(|e| e.to_string())?
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(|e| e.to_string())?;
+            columns
+        };
+        if !entry_columns.iter().any(|name| name == "icon") {
+            conn.execute(
+                "ALTER TABLE entries ADD COLUMN icon TEXT NOT NULL DEFAULT ''",
+                [],
+            )
+            .map_err(|e| e.to_string())?;
+            conn.execute(
+                "UPDATE entries SET icon=CASE entry_type WHEN '仕事' THEN 'done' WHEN '気づき' THEN 'idea' WHEN '出来事' THEN 'message' WHEN '体調' THEN 'break' WHEN 'アイデア' THEN 'idea' ELSE '' END",
+                [],
+            )
+            .map_err(|e| e.to_string())?;
+        }
+        conn.execute(
+            "UPDATE entries SET icon=CASE icon WHEN '💼' THEN 'done' WHEN '💡' THEN 'idea' WHEN '📌' THEN 'message' WHEN '🌿' THEN 'break' WHEN '✨' THEN 'idea' ELSE icon END",
+            [],
+        )
+        .map_err(|e| e.to_string())?;
         let tx = conn.transaction().map_err(|e| e.to_string())?;
         let legacy = {
             let mut query = tx
@@ -147,12 +175,12 @@ impl Database {
             .map_err(|e| e.to_string())?
             .collect::<Result<Vec<_>, _>>()
             .map_err(|e| e.to_string())?;
-        let mut q=conn.prepare("SELECT id,entry_type,title,body,occurred_at FROM entries WHERE day_id=?1 ORDER BY occurred_at,id").map_err(|e|e.to_string())?;
+        let mut q=conn.prepare("SELECT id,icon,title,body,occurred_at FROM entries WHERE day_id=?1 ORDER BY occurred_at,id").map_err(|e|e.to_string())?;
         let entries = q
             .query_map([id], |r| {
                 Ok(Entry {
                     id: r.get(0)?,
-                    entry_type: r.get(1)?,
+                    icon: r.get(1)?,
                     title: r.get(2)?,
                     body: r.get(3)?,
                     occurred_at: r.get(4)?,
@@ -318,16 +346,16 @@ impl Database {
             .map_err(|e| e.to_string())?;
         Ok(tasks)
     }
-    pub fn create_entry(&self, date: &str, body: &str, kind: &str) -> Result<Entry, String> {
+    pub fn create_entry(&self, date: &str, body: &str, icon: &str) -> Result<Entry, String> {
         let conn = self.0.lock().map_err(|e| e.to_string())?;
         let day = Self::day_id(&conn, date)?;
         let stamp = now();
-        conn.execute("INSERT INTO entries(day_id,entry_type,body,occurred_at,created_at,updated_at) VALUES(?1,?2,?3,?4,?4,?4)",params![day,kind,body,stamp]).map_err(|e|e.to_string())?;
+        conn.execute("INSERT INTO entries(day_id,icon,body,occurred_at,created_at,updated_at) VALUES(?1,?2,?3,?4,?4,?4)",params![day,icon,body,stamp]).map_err(|e|e.to_string())?;
         let id = conn.last_insert_rowid();
         self.index(&conn, "entry", id, day, body)?;
         Ok(Entry {
             id,
-            entry_type: kind.into(),
+            icon: icon.into(),
             title: None,
             body: body.into(),
             occurred_at: stamp,
@@ -336,7 +364,7 @@ impl Database {
     pub fn update_entry(&self, e: &Entry, target_date: &str) -> Result<Entry, String> {
         let conn = self.0.lock().map_err(|e| e.to_string())?;
         let day = Self::day_id(&conn, target_date)?;
-        conn.execute("UPDATE entries SET day_id=?2,entry_type=?3,title=?4,body=?5,occurred_at=?6,updated_at=?7 WHERE id=?1",params![e.id,day,e.entry_type,e.title,e.body,e.occurred_at,now()]).map_err(|x|x.to_string())?;
+        conn.execute("UPDATE entries SET day_id=?2,icon=?3,title=?4,body=?5,occurred_at=?6,updated_at=?7 WHERE id=?1",params![e.id,day,e.icon,e.title,e.body,e.occurred_at,now()]).map_err(|x|x.to_string())?;
         self.index(
             &conn,
             "entry",
@@ -698,7 +726,7 @@ impl Database {
             })
             .collect::<Vec<_>>()
             .join("\n\n");
-        let value = serde_json::json!({"date":d.day_date,"tasks":d.tasks.iter().map(|t|serde_json::json!({"title":t.title,"completed":t.is_completed})).collect::<Vec<_>>(),"entries":d.entries.iter().map(|e|serde_json::json!({"time":e.occurred_at,"type":e.entry_type,"title":e.title,"body":e.body})).collect::<Vec<_>>(),"note_markdown":note_markdown,"review":{"good":d.review.good,"bad":d.review.bad,"carry_over":d.review.carry_over}});
+        let value = serde_json::json!({"date":d.day_date,"tasks":d.tasks.iter().map(|t|serde_json::json!({"title":t.title,"completed":t.is_completed})).collect::<Vec<_>>(),"entries":d.entries.iter().map(|e|serde_json::json!({"time":e.occurred_at,"icon":e.icon,"title":e.title,"body":e.body})).collect::<Vec<_>>(),"note_markdown":note_markdown,"review":{"good":d.review.good,"bad":d.review.bad,"carry_over":d.review.carry_over}});
         Ok((d.id, value))
     }
     pub fn start_ai_run(
@@ -820,7 +848,7 @@ mod tests {
     }
 
     #[test]
-    fn migrates_task_deadlines_and_reorders_tasks_safely() {
+    fn migrates_legacy_columns_and_reorders_tasks_safely() {
         let path = std::env::temp_dir().join(format!(
             "daylog-task-migration-test-{}-{}.db",
             std::process::id(),
@@ -831,13 +859,16 @@ mod tests {
             conn.execute_batch("PRAGMA foreign_keys=ON;
                 CREATE TABLE days(id INTEGER PRIMARY KEY AUTOINCREMENT,day_date TEXT NOT NULL UNIQUE,is_closed INTEGER NOT NULL DEFAULT 0,created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
                 CREATE TABLE tasks(id INTEGER PRIMARY KEY AUTOINCREMENT,day_id INTEGER NOT NULL,title TEXT NOT NULL,is_completed INTEGER NOT NULL DEFAULT 0,sort_order INTEGER NOT NULL DEFAULT 0,priority INTEGER,carried_over INTEGER NOT NULL DEFAULT 0,created_at TEXT NOT NULL,completed_at TEXT,FOREIGN KEY(day_id) REFERENCES days(id) ON DELETE CASCADE);
+                CREATE TABLE entries(id INTEGER PRIMARY KEY AUTOINCREMENT,day_id INTEGER NOT NULL,entry_type TEXT NOT NULL DEFAULT 'memo',title TEXT,body TEXT NOT NULL,occurred_at TEXT NOT NULL,created_at TEXT NOT NULL,updated_at TEXT NOT NULL,FOREIGN KEY(day_id) REFERENCES days(id) ON DELETE CASCADE);
                 INSERT INTO days(id,day_date,created_at,updated_at) VALUES(1,'2026-09-06','now','now');
-                INSERT INTO tasks(id,day_id,title,sort_order,created_at) VALUES(1,1,'既存タスク',0,'now');").unwrap();
+                INSERT INTO tasks(id,day_id,title,sort_order,created_at) VALUES(1,1,'既存タスク',0,'now');
+                INSERT INTO entries(id,day_id,entry_type,body,occurred_at,created_at,updated_at) VALUES(1,1,'気づき','既存の記録','2026-09-06T09:00:00+09:00','now','now');").unwrap();
         }
         let db = open_test_database(&path);
         let existing = db.get_day("2026-09-06").unwrap().tasks.remove(0);
         assert_eq!(existing.title, "既存タスク");
         assert!(existing.due_at.is_none());
+        assert_eq!(db.get_day("2026-09-06").unwrap().entries[0].icon, "idea");
 
         let mut first = existing;
         first.due_at = Some("2026-09-06T18:30:00+09:00".into());
@@ -879,7 +910,7 @@ mod tests {
             .create_task("2026-09-03", "仕様を確認する", false)
             .unwrap();
         assert!(!task.is_completed);
-        db.create_entry("2026-09-03", "朝会で進捗を確認", "仕事")
+        db.create_entry("2026-09-03", "朝会で進捗を確認", "done")
             .unwrap();
         let mut note = db.create_note_card("2026-09-03").unwrap();
         note.title = "気づき".into();
@@ -919,7 +950,7 @@ mod tests {
         ));
         let db = open_test_database(&path);
         let mut entry = db
-            .create_entry("2026-09-05", "変更前の内容", "仕事")
+            .create_entry("2026-09-05", "変更前の内容", "done")
             .unwrap();
         entry.title = None;
         entry.body = "変更後の内容".into();

@@ -67,8 +67,8 @@ describe("TodayPage Markdown export", () => {
 
   it("reorders an edited entry by its new time", async () => {
     const entries = [
-      { id: 1, entryType: "memo", body: "早い", occurredAt: "2026-09-05T10:00:00+09:00" },
-      { id: 2, entryType: "memo", body: "遅い", occurredAt: "2026-09-05T12:00:00+09:00" }
+      { id: 1, icon: "", body: "早い", occurredAt: "2026-09-05T10:00:00+09:00" },
+      { id: 2, icon: "", body: "遅い", occurredAt: "2026-09-05T12:00:00+09:00" }
     ];
     const currentDay = { ...day, entries, notes: [] };
     const onDay = vi.fn();
@@ -83,7 +83,7 @@ describe("TodayPage Markdown export", () => {
   });
 
   it("removes an entry from the current list after moving it to another day", async () => {
-    const currentDay = { ...day, entries: [{ id: 1, entryType: "memo", body: "移動する", occurredAt: "2026-09-05T10:00:00+09:00" }], notes: [] };
+    const currentDay = { ...day, entries: [{ id: 1, icon: "", body: "移動する", occurredAt: "2026-09-05T10:00:00+09:00" }], notes: [] };
     const onDay = vi.fn();
     const onOpenDate = vi.fn();
     render(<TodayPage day={currentDay} settings={settings} onDay={onDay} onOpenDate={onOpenDate} onError={vi.fn()}/>);

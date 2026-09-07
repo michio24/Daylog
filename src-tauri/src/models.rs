@@ -17,7 +17,7 @@ pub struct Task {
 #[serde(rename_all = "camelCase")]
 pub struct Entry {
     pub id: i64,
-    pub entry_type: String,
+    pub icon: String,
     pub title: Option<String>,
     pub body: String,
     pub occurred_at: String,

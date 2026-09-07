@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { Entry } from "../types";
+import { ENTRY_ICONS, EntryIcon } from "./EntryIcon";
 import { TimeFields, timePartIsValid } from "./TimeFields";
 
-const TYPES = ["仕事", "気づき", "出来事", "体調", "アイデア"];
 const pad = (value: number) => String(value).padStart(2, "0");
 const toLocalParts = (value: string, fallbackDate: string) => {
   const date = new Date(value);
@@ -25,16 +25,16 @@ const formatEntryDate = (value: string) => {
 
 interface Props {
   entries: Entry[]; dayDate: string; disabled: boolean;
-  onAdd: (body: string, type: string) => Promise<void>;
+  onAdd: (body: string, icon: string) => Promise<void>;
   onUpdate: (entry: Entry, targetDate: string) => Promise<Entry>;
-  onType: (entry: Entry, type: string) => Promise<void>;
+  onIcon: (entry: Entry, icon: string) => Promise<void>;
   onDelete: (id: number) => Promise<void>;
   onError: (message: string) => void;
 }
 
-export function TimelineSection({ entries, dayDate, disabled, onAdd, onUpdate, onType, onDelete, onError }: Props) {
+export function TimelineSection({ entries, dayDate, disabled, onAdd, onUpdate, onIcon, onDelete, onError }: Props) {
   const [draft, setDraft] = useState("");
-  const [type, setType] = useState("memo");
+  const [icon, setIcon] = useState("");
   const [currentTime, setCurrentTime] = useState(() => Date.now());
   const [editing, setEditing] = useState<Entry | null>(null);
   const [editBody, setEditBody] = useState("");
@@ -80,7 +80,7 @@ export function TimelineSection({ entries, dayDate, disabled, onAdd, onUpdate, o
     const body = draft.trim();
     if (!body || disabled) return;
     try {
-      await onAdd(body, type);
+      await onAdd(body, icon);
       setDraft((current) => current.trim() === body ? "" : current);
     } catch { /* The parent reports the error; keep the draft for retry. */ }
   };
@@ -118,13 +118,13 @@ export function TimelineSection({ entries, dayDate, disabled, onAdd, onUpdate, o
         const editLabel = text.replace(/\s+/g, " ").slice(0, 30);
         return <div className="timeline-row" key={entry.id}>
           <time>{new Date(entry.occurredAt).toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" })}</time>
-          <div className="timeline-content"><div><p>{text}</p><button disabled={disabled} className="tag" onClick={() => void onType(entry, TYPES[(TYPES.indexOf(entry.entryType) + 1) % TYPES.length])}>{entry.entryType === "memo" ? "＋ タグ" : entry.entryType}</button>{!disabled && <button className="entry-edit task-edit subtle-action" aria-label={`記録「${editLabel}」を編集`} onClick={(event) => openEditor(entry, event.currentTarget)}>✎</button>}{!disabled && <button className="delete subtle-action" aria-label={`記録「${editLabel}」を削除`} onClick={() => void onDelete(entry.id)}>×</button>}</div></div>
+          <div className="timeline-content"><div><p>{text}</p><button disabled={disabled} className={`entry-icon ${entry.icon ? "has-icon" : ""}`} aria-label={entry.icon ? `${ENTRY_ICONS.find((item) => item.value === entry.icon)?.label ?? "記録"}アイコンを変更` : "アイコンを付ける"} title="クリックでアイコンを変更" onClick={() => { const index = ENTRY_ICONS.findIndex((item) => item.value === entry.icon); void onIcon(entry, ENTRY_ICONS[index + 1]?.value ?? ""); }}>{entry.icon ? <EntryIcon icon={entry.icon}/> : <span aria-hidden="true">＋</span>}</button>{!disabled && <button className="entry-edit task-edit subtle-action" aria-label={`記録「${editLabel}」を編集`} onClick={(event) => openEditor(entry, event.currentTarget)}>✎</button>}{!disabled && <button className="delete subtle-action" aria-label={`記録「${editLabel}」を削除`} onClick={() => void onDelete(entry.id)}>×</button>}</div></div>
         </div>;
       })}
       {!entries.length && <p className="empty">何かあったら、その都度ここに書き足していく。時刻は自動で記録されます。</p>}
     </div>
     <div className="quick-entry"><time>{time}</time><textarea rows={1} disabled={disabled} value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && e.ctrlKey) { e.preventDefault(); void submit(); } }} placeholder="今あったことを書く…"/><kbd>Ctrl+Enter</kbd></div>
-    <div className="type-chips">{TYPES.map((item) => <button key={item} disabled={disabled} className={type === item ? "active" : ""} onClick={() => setType(type === item ? "memo" : item)}>{item}</button>)}</div>
+    <div className="icon-picker" role="group" aria-label="記録のアイコン">{ENTRY_ICONS.map((item) => <button key={item.value} type="button" disabled={disabled} className={icon === item.value ? "active" : ""} aria-label={`${item.label}アイコン`} aria-pressed={icon === item.value} title={item.label} onClick={() => setIcon(icon === item.value ? "" : item.value)}><EntryIcon icon={item.value}/></button>)}</div>
     {editing && createPortal(<div className="entry-editor-backdrop"><div ref={dialog} className="entry-editor" role="dialog" aria-modal="true" aria-labelledby="entry-editor-title">
       <header><div><span>JOURNAL</span><h2 id="entry-editor-title">記録を編集</h2></div><button className="editor-close" aria-label="記録編集を閉じる" disabled={saving} onClick={closeEditor}>×</button></header>
       <label><span>内容</span><textarea rows={6} aria-label="記録内容" value={editBody} disabled={saving} onChange={(event) => { setEditBody(event.target.value); setEditError(""); }} onKeyDown={(event) => { if (event.key === "Enter" && event.ctrlKey) { event.preventDefault(); void saveEditor(); } }}/></label>

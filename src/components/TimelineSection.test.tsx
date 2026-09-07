@@ -6,16 +6,16 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Entry } from "../types";
 import { TimelineSection } from "./TimelineSection";
 
-const entry: Entry = { id: 1, entryType: "memo", body: "最初の行\n2行目\n3行目", occurredAt: "2026-09-05T09:00:00+09:00" };
+const entry: Entry = { id: 1, icon: "", body: "最初の行\n2行目\n3行目", occurredAt: "2026-09-05T09:00:00+09:00" };
 
 const setup = (entries: Entry[] = [entry], disabled = false) => {
   const onAdd = vi.fn().mockResolvedValue(undefined);
   const onUpdate = vi.fn(async (value: Entry) => value);
-  const onType = vi.fn().mockResolvedValue(undefined);
+  const onIcon = vi.fn().mockResolvedValue(undefined);
   const onDelete = vi.fn().mockResolvedValue(undefined);
   const onError = vi.fn();
-  const result = render(<TimelineSection entries={entries} dayDate="2026-09-05" disabled={disabled} onAdd={onAdd} onUpdate={onUpdate} onType={onType} onDelete={onDelete} onError={onError}/>);
-  return { ...result, onAdd, onUpdate, onType, onDelete, onError };
+  const result = render(<TimelineSection entries={entries} dayDate="2026-09-05" disabled={disabled} onAdd={onAdd} onUpdate={onUpdate} onIcon={onIcon} onDelete={onDelete} onError={onError}/>);
+  return { ...result, onAdd, onUpdate, onIcon, onDelete, onError };
 };
 
 afterEach(() => { cleanup(); vi.useRealTimers(); });
@@ -32,7 +32,19 @@ describe("TimelineSection", () => {
     const input = screen.getByPlaceholderText("今あったことを書く…");
     fireEvent.change(input, { target: { value: "最初の行\n2行目" } });
     fireEvent.keyDown(input, { key: "Enter", ctrlKey: true });
-    await waitFor(() => expect(onAdd).toHaveBeenCalledWith("最初の行\n2行目", "memo"));
+    await waitFor(() => expect(onAdd).toHaveBeenCalledWith("最初の行\n2行目", ""));
+  });
+
+  it("selects an icon for a new entry and changes an existing icon", async () => {
+    const { onAdd, onIcon } = setup();
+    fireEvent.click(screen.getByRole("button", { name: "完了アイコン" }));
+    const input = screen.getByPlaceholderText("今あったことを書く…");
+    fireEvent.change(input, { target: { value: "アイコン付き" } });
+    fireEvent.keyDown(input, { key: "Enter", ctrlKey: true });
+    await waitFor(() => expect(onAdd).toHaveBeenCalledWith("アイコン付き", "done"));
+
+    fireEvent.click(screen.getByRole("button", { name: "アイコンを付ける" }));
+    expect(onIcon).toHaveBeenCalledWith(entry, "message");
   });
 
   it("keeps the quick-entry clock aligned with the current minute", () => {

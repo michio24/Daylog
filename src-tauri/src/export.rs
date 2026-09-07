@@ -105,11 +105,6 @@ fn render_markdown(day: &DayData, links: &HashMap<String, String>) -> Result<Str
         output.push('\n');
     } else {
         for entry in &day.entries {
-            let tag = if entry.entry_type == "memo" {
-                String::new()
-            } else {
-                format!(" `{}`", escape_inline(&entry.entry_type))
-            };
             let body = entry
                 .title
                 .as_deref()
@@ -122,11 +117,7 @@ fn render_markdown(day: &DayData, links: &HashMap<String, String>) -> Result<Str
                     )
                 })
                 .unwrap_or_else(|| escaped_lines(&entry.body));
-            output.push_str(&format!(
-                "- {}{tag} {}\n",
-                entry_time(&entry.occurred_at),
-                body
-            ));
+            output.push_str(&format!("- {} {}\n", entry_time(&entry.occurred_at), body));
         }
     }
 
@@ -329,7 +320,7 @@ mod tests {
             ],
             entries: vec![Entry {
                 id: 1,
-                entry_type: "仕事".into(),
+                icon: "done".into(),
                 title: None,
                 body: "原因を確認\n修正案を作成".into(),
                 occurred_at: "2026-09-05T09:18:00+09:00".into(),
@@ -358,7 +349,7 @@ mod tests {
         assert!(markdown.starts_with("# 2026年09月05日(土)\n"));
         assert!(markdown.contains("- [x] 仕様 \\*確認\\*"));
         assert!(markdown.contains("- [ ] 残作業（持ち越し）"));
-        assert!(markdown.contains("- 09:18 `仕事` 原因を確認  \n修正案を作成"));
+        assert!(markdown.contains("- 09:18 原因を確認  \n修正案を作成"));
         assert!(markdown.contains("### 設計メモ\n**Markdown** を保持"));
         assert!(markdown.contains("### うまくいかなかったこと\n_記録なし_"));
         assert!(markdown.contains("確認 \\[続き\\]"));
@@ -367,7 +358,7 @@ mod tests {
         let mut titled = sample_day();
         titled.entries[0].title = Some("調査結果".into());
         let markdown = render_markdown(&titled, &HashMap::new()).unwrap();
-        assert!(markdown.contains("- 09:18 `仕事` 調査結果  \n原因を確認"));
+        assert!(markdown.contains("- 09:18 調査結果  \n原因を確認"));
     }
 
     #[test]
