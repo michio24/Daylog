@@ -41,6 +41,7 @@ export function TaskSection({ tasks, dayDate, disabled, onTasksChange, onAdd, on
   const [showDueDate, setShowDueDate] = useState(false);
   const [editError, setEditError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const [draggedId, setDraggedId] = useState<number | null>(null);
   const [dropTargetId, setDropTargetId] = useState<number | null>(null);
@@ -84,7 +85,14 @@ export function TaskSection({ tasks, dayDate, disabled, onTasksChange, onAdd, on
   const clearDeadline = () => {
     setEditDueDate(dayDate); setEditDueHour(""); setEditDueMinute(""); setShowDueDate(false); setEditError("");
   };
-  const closeEditor = () => { setEditing(null); setEditError(""); window.setTimeout(() => opener.current?.focus()); };
+  const closeEditor = () => { setEditing(null); setEditError(""); window.setTimeout(() => (opener.current?.isConnected ? opener.current : input.current)?.focus()); };
+  const deleteEditing = async () => {
+    if (!editing || saving || disabled) return;
+    setSaving(true); setDeleting(true); setEditError("");
+    try { await onDelete(editing.id); closeEditor(); }
+    catch (error) { setEditError("削除できませんでした。もう一度お試しください。"); onError(String(error)); }
+    finally { setSaving(false); setDeleting(false); }
+  };
   const saveEditor = async () => {
     if (!editing || saving) return;
     const title = editTitle.trim();
@@ -155,7 +163,6 @@ export function TaskSection({ tasks, dayDate, disabled, onTasksChange, onAdd, on
           <div className="task-content"><span className={task.isCompleted ? "completed" : ""}>{task.title}</span>{task.dueAt && <time dateTime={task.dueAt} className={overdue ? "overdue" : ""}>{overdue && <span aria-label="期限超過">🔥 </span>}{formatDueAt(task.dueAt)}</time>}</div>
           {task.carriedOver && <em>持ち越し</em>}
           {!disabled && <button className="task-edit subtle-action" aria-label={`${task.title}を編集`} onClick={(event) => openEditor(task, event.currentTarget)}>✎</button>}
-          {!disabled && <button className="delete subtle-action" aria-label={`${task.title}を削除`} onClick={() => void onDelete(task.id)}>×</button>}
         </div>;
       })}
       {!tasks.length && <p className="empty">まず、今日やることを1つだけ書いてみる。</p>}
@@ -174,7 +181,7 @@ export function TaskSection({ tasks, dayDate, disabled, onTasksChange, onAdd, on
         </div>
       </div>
       {editError && <p className="error-text" role="alert">{editError}</p>}
-      <footer><button disabled={saving} onClick={closeEditor}>キャンセル</button><button className="primary-button" disabled={saving} onClick={() => void saveEditor()}>{saving ? "保存中…" : "保存"}</button></footer>
+      <footer><button type="button" className="danger-button" disabled={saving || disabled} onClick={() => void deleteEditing()}>{deleting ? "削除中…" : "この項目を削除"}</button><button disabled={saving} onClick={closeEditor}>キャンセル</button><button className="primary-button" disabled={saving} onClick={() => void saveEditor()}>{saving && !deleting ? "保存中…" : "保存"}</button></footer>
     </div></div>, document.querySelector(".app-shell") ?? document.body)}
   </section>;
 }

@@ -184,4 +184,36 @@ describe("TaskSection", () => {
     expect(screen.queryByRole("button", { name: /を編集$/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /ドラッグして並び替え/ })).not.toBeInTheDocument();
   });
+  it("deletes from the editor, removes inline delete controls, and locks actions while deleting", async () => {
+    const { onDelete, onUpdate } = setup();
+    let finish!: (value: undefined) => void;
+    onDelete.mockImplementationOnce(() => new Promise<undefined>((resolve) => { finish = resolve; }));
+    expect(screen.queryByRole("button", { name: /削除/ })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "最初を編集" }));
+    fireEvent.click(screen.getByRole("button", { name: "この項目を削除" }));
+    expect(onDelete).toHaveBeenCalledWith(1);
+    expect(screen.getByRole("button", { name: "削除中…" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "保存" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "キャンセル" })).toBeDisabled();
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    await act(async () => { finish(undefined); });
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(onUpdate).not.toHaveBeenCalled();
+  });
+
+  it("keeps edits after deletion failure and allows retry", async () => {
+    const { onDelete, onError } = setup();
+    onDelete.mockRejectedValueOnce(new Error("delete failed"));
+    fireEvent.click(screen.getByRole("button", { name: "最初を編集" }));
+    fireEvent.change(screen.getByLabelText("タスク名"), { target: { value: "編集中の内容" } });
+    fireEvent.click(screen.getByRole("button", { name: "この項目を削除" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("削除できませんでした");
+    expect(screen.getByLabelText("タスク名")).toHaveValue("編集中の内容");
+    expect(onError).toHaveBeenCalledWith(expect.stringContaining("delete failed"));
+    fireEvent.click(screen.getByRole("button", { name: "この項目を削除" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(onDelete).toHaveBeenCalledTimes(2);
+  });
+
 });

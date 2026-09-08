@@ -4,9 +4,9 @@ import { formatHeaderDate } from "../utils/date";
 
 interface Props { screen: Screen; date: string; settings: Settings; onNavigate: (screen: Screen) => void; onSettings: (settings: Settings) => void; }
 
-const themes: Settings["theme"][] = ["light", "mist", "fluent", "sakura", "dark", "circuit"];
-const themeLabels: Record<Settings["theme"], string> = { light: "和", mist: "霧", fluent: "流", sakura: "桜", dark: "夜", circuit: "電" };
-const themeDescriptions: Record<Settings["theme"], string> = { light: "生成りと墨", mist: "静かな青灰", fluent: "澄んだ水色と青緑", sakura: "ミルク色と桜のピンク", dark: "深い藍と琥珀", circuit: "蛍光色とグリッド" };
+const themes: Settings["theme"][] = ["light", "mist", "fluent", "sakura", "dark", "circuit", "retro"];
+const themeLabels: Record<Settings["theme"], string> = { light: "和", mist: "霧", fluent: "流", sakura: "桜", dark: "夜", circuit: "電", retro: "懐" };
+const themeDescriptions: Record<Settings["theme"], string> = { light: "和紙に藍と朱", mist: "淡い青と透き通る霧", fluent: "Fluent・青と柔らかな奥行き", sakura: "桜色と柔らかな花びら", dark: "深い藍と月明かり", circuit: "ネオンと電脳グリッド", retro: "クリーム色とレトロ喫茶" };
 
 export function Header({ screen, date, settings, onNavigate, onSettings }: Props) {
   const [themeOpen, setThemeOpen] = useState(false);

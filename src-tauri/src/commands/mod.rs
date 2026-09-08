@@ -5,7 +5,25 @@ use chrono::{DateTime, Local, NaiveDate};
 use tauri::State;
 use tauri_plugin_opener::OpenerExt;
 
-const ENTRY_ICONS: [&str; 6] = ["", "message", "done", "break", "idea", "alert"];
+const ENTRY_ICONS: [&str; 25] = [
+    "message", "done", "break", "idea", "alert", "work", "meeting", "study", "write", "code",
+    "meal", "walk", "exercise", "health", "sleep", "travel", "shopping", "home", "happy", "goal",
+    "beer", "music", "movie", "photo", "gift",
+];
+const ENTRY_COLORS: [&str; 12] = [
+    "blue", "teal", "green", "amber", "orange", "rose", "violet", "slate", "cyan", "indigo", "red",
+    "brown",
+];
+
+fn valid_entry_icon(value: &str) -> bool {
+    if value.is_empty() {
+        return true;
+    }
+    match value.split_once(':') {
+        Some((icon, color)) => ENTRY_ICONS.contains(&icon) && ENTRY_COLORS.contains(&color),
+        None => ENTRY_ICONS.contains(&value),
+    }
+}
 
 #[tauri::command]
 pub fn get_today(db: State<Database>) -> Result<DayData, String> {
@@ -64,7 +82,7 @@ pub fn create_entry(
     if body.trim().is_empty() {
         return Err("記録が空です".into());
     }
-    if !ENTRY_ICONS.contains(&icon.as_str()) {
+    if !valid_entry_icon(&icon) {
         return Err("記録のアイコンが正しくありません".into());
     }
     db.create_entry(&date, body.trim(), &icon)
@@ -79,7 +97,7 @@ pub fn update_entry(
     if entry.body.is_empty() {
         return Err("記録が空です".into());
     }
-    if !ENTRY_ICONS.contains(&entry.icon.as_str()) {
+    if !valid_entry_icon(&entry.icon) {
         return Err("記録のアイコンが正しくありません".into());
     }
     let occurred_at = DateTime::parse_from_rfc3339(&entry.occurred_at)
@@ -256,4 +274,64 @@ pub fn export_note_markdown(
     paths: State<AppPaths>,
 ) -> Result<ExportResult, String> {
     crate::export::export_note(note_id, &path, &db, &paths)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn accepts_legacy_icons_and_every_frontend_icon_color_pair() {
+        assert!(valid_entry_icon(""));
+        let frontend = include_str!("../../../src/components/EntryIcon.tsx");
+        let values = |section: &str| -> Vec<String> {
+            section
+                .split("value: \"")
+                .skip(1)
+                .map(|part| part.split('"').next().unwrap().to_string())
+                .collect()
+        };
+        let icons = values(
+            frontend
+                .split("export const ENTRY_ICONS = [")
+                .nth(1)
+                .unwrap()
+                .split("] as const;")
+                .next()
+                .unwrap(),
+        );
+        let colors = values(
+            frontend
+                .split("export const ENTRY_COLORS = [")
+                .nth(1)
+                .unwrap()
+                .split("] as const;")
+                .next()
+                .unwrap(),
+        );
+        assert_eq!(icons, ENTRY_ICONS);
+        assert_eq!(colors, ENTRY_COLORS);
+        for icon in icons {
+            assert!(valid_entry_icon(&icon));
+            for color in &colors {
+                assert!(valid_entry_icon(&format!("{icon}:{color}")));
+            }
+        }
+    }
+
+    #[test]
+    fn rejects_unknown_and_malformed_icon_pairs() {
+        for value in [
+            "unknown",
+            "unknown:blue",
+            "done:unknown",
+            ":blue",
+            "done:",
+            "done:blue:rose",
+            " done",
+            "done: blue",
+        ] {
+            assert!(!valid_entry_icon(value), "accepted {value}");
+        }
+    }
 }

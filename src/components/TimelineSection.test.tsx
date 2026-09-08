@@ -18,7 +18,7 @@ const setup = (entries: Entry[] = [entry], disabled = false) => {
   return { ...result, onAdd, onUpdate, onIcon, onDelete, onError };
 };
 
-afterEach(() => { cleanup(); vi.useRealTimers(); });
+afterEach(() => { cleanup(); localStorage.clear(); vi.useRealTimers(); });
 
 describe("TimelineSection", () => {
   it("shows every line of a multiline entry", () => {
@@ -37,14 +37,20 @@ describe("TimelineSection", () => {
 
   it("selects an icon for a new entry and changes an existing icon", async () => {
     const { onAdd, onIcon } = setup();
+    fireEvent.click(screen.getByRole("button", { name: "記録のアイコンと色を選択" }));
     fireEvent.click(screen.getByRole("button", { name: "完了アイコン" }));
+    fireEvent.click(screen.getByRole("button", { name: "ティール" }));
+    fireEvent.click(screen.getByRole("button", { name: "決定" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
     const input = screen.getByPlaceholderText("今あったことを書く…");
     fireEvent.change(input, { target: { value: "アイコン付き" } });
     fireEvent.keyDown(input, { key: "Enter", ctrlKey: true });
-    await waitFor(() => expect(onAdd).toHaveBeenCalledWith("アイコン付き", "done"));
+    await waitFor(() => expect(onAdd).toHaveBeenCalledWith("アイコン付き", "done:teal"));
 
     fireEvent.click(screen.getByRole("button", { name: "アイコンを付ける" }));
-    expect(onIcon).toHaveBeenCalledWith(entry, "message");
+    fireEvent.click(screen.getByRole("button", { name: "完了・ティール" }));
+    fireEvent.click(screen.getByRole("button", { name: "決定" }));
+    await waitFor(() => expect(onIcon).toHaveBeenCalledWith(entry, "done:teal"));
   });
 
   it("keeps the quick-entry clock aligned with the current minute", () => {
@@ -134,4 +140,36 @@ describe("TimelineSection", () => {
     setup([entry], true);
     expect(screen.queryByRole("button", { name: /を編集$/ })).not.toBeInTheDocument();
   });
+  it("deletes from the editor, removes inline delete controls, and locks actions while deleting", async () => {
+    const { onDelete, onUpdate } = setup();
+    let finish!: (value: undefined) => void;
+    onDelete.mockImplementationOnce(() => new Promise<undefined>((resolve) => { finish = resolve; }));
+    expect(screen.queryByRole("button", { name: /削除/ })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "記録「最初の行 2行目 3行目」を編集" }));
+    fireEvent.click(screen.getByRole("button", { name: "この項目を削除" }));
+    expect(onDelete).toHaveBeenCalledWith(1);
+    expect(screen.getByRole("button", { name: "削除中…" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "保存" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "キャンセル" })).toBeDisabled();
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    await act(async () => { finish(undefined); });
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(onUpdate).not.toHaveBeenCalled();
+  });
+
+  it("keeps edits after deletion failure and allows retry", async () => {
+    const { onDelete, onError } = setup();
+    onDelete.mockRejectedValueOnce(new Error("delete failed"));
+    fireEvent.click(screen.getByRole("button", { name: "記録「最初の行 2行目 3行目」を編集" }));
+    fireEvent.change(screen.getByLabelText("記録内容"), { target: { value: "編集中の内容" } });
+    fireEvent.click(screen.getByRole("button", { name: "この項目を削除" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("削除できませんでした");
+    expect(screen.getByLabelText("記録内容")).toHaveValue("編集中の内容");
+    expect(onError).toHaveBeenCalledWith(expect.stringContaining("delete failed"));
+    fireEvent.click(screen.getByRole("button", { name: "この項目を削除" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(onDelete).toHaveBeenCalledTimes(2);
+  });
+
 });

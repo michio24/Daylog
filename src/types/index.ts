@@ -14,4 +14,4 @@ export interface CustomHoliday { date: string; name: string; }
 export interface HolidayUpdateResult { count: number; latestDate: string; }
 export interface ExportResult { markdownPath: string; assetsDirectory?: string | null; attachmentCount: number; }
 export interface SearchResult { entityType: string; entityId: number; dayDate: string; excerpt: string; }
-export interface Settings { aiEnabled: boolean; modelPath: string; backend: "Auto" | "CUDA" | "Vulkan" | "CPU"; contextSize: number | null; generationLength: "短め" | "標準" | "長め"; backupGenerations: number; theme: "light" | "mist" | "fluent" | "sakura" | "dark" | "circuit"; layout: "one" | "two" | "three"; }
+export interface Settings { aiEnabled: boolean; modelPath: string; backend: "Auto" | "CUDA" | "Vulkan" | "CPU"; contextSize: number | null; generationLength: "短め" | "標準" | "長め"; backupGenerations: number; theme: "light" | "mist" | "fluent" | "sakura" | "dark" | "circuit" | "retro"; layout: "one" | "two" | "three"; }

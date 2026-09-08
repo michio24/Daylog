@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { Entry } from "../types";
-import { ENTRY_ICONS, EntryIcon } from "./EntryIcon";
+import { EntryIcon, parseEntryIcon } from "./EntryIcon";
+import { EntryIconPicker } from "./EntryIconPicker";
 import { TimeFields, timePartIsValid } from "./TimeFields";
 
 const pad = (value: number) => String(value).padStart(2, "0");
@@ -35,6 +36,7 @@ interface Props {
 export function TimelineSection({ entries, dayDate, disabled, onAdd, onUpdate, onIcon, onDelete, onError }: Props) {
   const [draft, setDraft] = useState("");
   const [icon, setIcon] = useState("");
+  const [iconTarget, setIconTarget] = useState<Entry | "draft" | null>(null);
   const [currentTime, setCurrentTime] = useState(() => Date.now());
   const [editing, setEditing] = useState<Entry | null>(null);
   const [editBody, setEditBody] = useState("");
@@ -44,7 +46,9 @@ export function TimelineSection({ entries, dayDate, disabled, onAdd, onUpdate, o
   const [showDate, setShowDate] = useState(false);
   const [editError, setEditError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const dialog = useRef<HTMLDivElement>(null);
+  const draftInput = useRef<HTMLTextAreaElement>(null);
   const opener = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
@@ -90,7 +94,14 @@ export function TimelineSection({ entries, dayDate, disabled, onAdd, onUpdate, o
     setEditDate(occurred.date); setEditHour(occurred.hour); setEditMinute(occurred.minute);
     setShowDate(occurred.date !== dayDate); setEditError("");
   };
-  const closeEditor = () => { setEditing(null); setEditError(""); window.setTimeout(() => opener.current?.focus()); };
+  const closeEditor = () => { setEditing(null); setEditError(""); window.setTimeout(() => (opener.current?.isConnected ? opener.current : draftInput.current)?.focus()); };
+  const deleteEditing = async () => {
+    if (!editing || saving || disabled) return;
+    setSaving(true); setDeleting(true); setEditError("");
+    try { await onDelete(editing.id); closeEditor(); }
+    catch (error) { setEditError("削除できませんでした。もう一度お試しください。"); onError(String(error)); }
+    finally { setSaving(false); setDeleting(false); }
+  };
   const saveEditor = async () => {
     if (!editing || saving) return;
     const body = editBody.trim();
@@ -118,13 +129,14 @@ export function TimelineSection({ entries, dayDate, disabled, onAdd, onUpdate, o
         const editLabel = text.replace(/\s+/g, " ").slice(0, 30);
         return <div className="timeline-row" key={entry.id}>
           <time>{new Date(entry.occurredAt).toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" })}</time>
-          <div className="timeline-content"><div><p>{text}</p><button disabled={disabled} className={`entry-icon ${entry.icon ? "has-icon" : ""}`} aria-label={entry.icon ? `${ENTRY_ICONS.find((item) => item.value === entry.icon)?.label ?? "記録"}アイコンを変更` : "アイコンを付ける"} title="クリックでアイコンを変更" onClick={() => { const index = ENTRY_ICONS.findIndex((item) => item.value === entry.icon); void onIcon(entry, ENTRY_ICONS[index + 1]?.value ?? ""); }}>{entry.icon ? <EntryIcon icon={entry.icon}/> : <span aria-hidden="true">＋</span>}</button>{!disabled && <button className="entry-edit task-edit subtle-action" aria-label={`記録「${editLabel}」を編集`} onClick={(event) => openEditor(entry, event.currentTarget)}>✎</button>}{!disabled && <button className="delete subtle-action" aria-label={`記録「${editLabel}」を削除`} onClick={() => void onDelete(entry.id)}>×</button>}</div></div>
+          <div className="timeline-content"><div><button disabled={disabled} className={`entry-icon ${entry.icon ? "has-icon" : ""}`} aria-label={entry.icon ? `${parseEntryIcon(entry.icon).label}アイコンを変更` : "アイコンを付ける"} title="クリックでアイコンを変更" aria-haspopup="dialog" onClick={() => setIconTarget(entry)}>{entry.icon ? <EntryIcon icon={entry.icon}/> : <span aria-hidden="true">＋</span>}</button><p>{text}</p>{!disabled && <button className="entry-edit task-edit subtle-action" aria-label={`記録「${editLabel}」を編集`} onClick={(event) => openEditor(entry, event.currentTarget)}>✎</button>}</div></div>
         </div>;
       })}
       {!entries.length && <p className="empty">何かあったら、その都度ここに書き足していく。時刻は自動で記録されます。</p>}
     </div>
-    <div className="quick-entry"><time>{time}</time><textarea rows={1} disabled={disabled} value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && e.ctrlKey) { e.preventDefault(); void submit(); } }} placeholder="今あったことを書く…"/><kbd>Ctrl+Enter</kbd></div>
-    <div className="icon-picker" role="group" aria-label="記録のアイコン">{ENTRY_ICONS.map((item) => <button key={item.value} type="button" disabled={disabled} className={icon === item.value ? "active" : ""} aria-label={`${item.label}アイコン`} aria-pressed={icon === item.value} title={item.label} onClick={() => setIcon(icon === item.value ? "" : item.value)}><EntryIcon icon={item.value}/></button>)}</div>
+    <div className="quick-entry"><time>{time}</time><textarea ref={draftInput} rows={1} disabled={disabled} value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && e.ctrlKey) { e.preventDefault(); void submit(); } }} placeholder="今あったことを書く…"/><kbd>Ctrl+Enter</kbd></div>
+    <div className="entry-icon-toolbar"><button type="button" className="entry-icon-trigger" disabled={disabled} aria-label="記録のアイコンと色を選択" aria-haspopup="dialog" onClick={() => setIconTarget("draft")}>{icon ? <EntryIcon icon={icon}/> : <span aria-hidden="true">＋</span>}<span>{icon ? parseEntryIcon(icon).label : "アイコンを選択"}</span><span aria-hidden="true">⌄</span></button></div>
+    {iconTarget !== null && <EntryIconPicker key={iconTarget === "draft" ? "draft" : iconTarget.id} value={iconTarget === "draft" ? icon : iconTarget.icon} onClose={() => setIconTarget(null)} onSelect={async (value) => { if (iconTarget === "draft") setIcon(value); else await onIcon(iconTarget, value); }}/>}
     {editing && createPortal(<div className="entry-editor-backdrop"><div ref={dialog} className="entry-editor" role="dialog" aria-modal="true" aria-labelledby="entry-editor-title">
       <header><div><span>JOURNAL</span><h2 id="entry-editor-title">記録を編集</h2></div><button className="editor-close" aria-label="記録編集を閉じる" disabled={saving} onClick={closeEditor}>×</button></header>
       <label><span>内容</span><textarea rows={6} aria-label="記録内容" value={editBody} disabled={saving} onChange={(event) => { setEditBody(event.target.value); setEditError(""); }} onKeyDown={(event) => { if (event.key === "Enter" && event.ctrlKey) { event.preventDefault(); void saveEditor(); } }}/></label>
@@ -135,7 +147,7 @@ export function TimelineSection({ entries, dayDate, disabled, onAdd, onUpdate, o
         <TimeFields ariaLabel="記録時刻" labelPrefix="記録" hour={editHour} minute={editMinute} disabled={saving} onHourChange={(value) => { setEditHour(value); setEditError(""); }} onMinuteChange={(value) => { setEditMinute(value); setEditError(""); }}/>
       </div>
       {editError && <p className="error-text" role="alert">{editError}</p>}
-      <footer><button disabled={saving} onClick={closeEditor}>キャンセル</button><button className="primary-button" disabled={saving} onClick={() => void saveEditor()}>{saving ? "保存中…" : "保存"}</button></footer>
+      <footer><button type="button" className="danger-button" disabled={saving || disabled} onClick={() => void deleteEditing()}>{deleting ? "削除中…" : "この項目を削除"}</button><button disabled={saving} onClick={closeEditor}>キャンセル</button><button className="primary-button" disabled={saving} onClick={() => void saveEditor()}>{saving && !deleting ? "保存中…" : "保存"}</button></footer>
     </div></div>, document.querySelector(".app-shell") ?? document.body)}
   </section>;
 }
