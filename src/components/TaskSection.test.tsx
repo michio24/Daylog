@@ -3,15 +3,15 @@
 import "@testing-library/jest-dom/vitest";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { Task } from "../types";
+import type { Task, Tag } from "../types";
 import { TaskSection } from "./TaskSection";
 
 const tasks: Task[] = [
-  { id: 1, title: "最初", isCompleted: false, sortOrder: 0, carriedOver: false, completedAt: null, dueAt: null },
-  { id: 2, title: "次", isCompleted: false, sortOrder: 1, carriedOver: false, completedAt: null, dueAt: null }
+  { id: 1, title: "最初", isCompleted: false, sortOrder: 0, carriedOver: false, completedAt: null, dueAt: null, tags: [] },
+  { id: 2, title: "次", isCompleted: false, sortOrder: 1, carriedOver: false, completedAt: null, dueAt: null, tags: [] }
 ];
 
-const setup = (items = tasks, disabled = false, dayDate = "2026-09-05") => {
+const setup = (items = tasks, disabled = false, dayDate = "2026-09-05", availableTags: Tag[] = []) => {
   const onTasksChange = vi.fn();
   const onAdd = vi.fn(async () => undefined);
   const onToggle = vi.fn(async () => undefined);
@@ -19,8 +19,9 @@ const setup = (items = tasks, disabled = false, dayDate = "2026-09-05") => {
   const onDelete = vi.fn(async () => undefined);
   const onReorder = vi.fn(async (ids: number[]) => ids.map((id, sortOrder) => ({ ...items.find((task) => task.id === id)!, sortOrder })));
   const onError = vi.fn();
-  render(<TaskSection tasks={items} dayDate={dayDate} disabled={disabled} onTasksChange={onTasksChange} onAdd={onAdd} onToggle={onToggle} onUpdate={onUpdate} onDelete={onDelete} onReorder={onReorder} onError={onError}/>);
-  return { onTasksChange, onAdd, onToggle, onUpdate, onDelete, onReorder, onError };
+  const onSetTags = vi.fn(async (_id: number, ids: number[]) => availableTags.filter((tag) => ids.includes(tag.id)));
+  render(<TaskSection tasks={items} availableTags={availableTags} dayDate={dayDate} disabled={disabled} onTasksChange={onTasksChange} onAdd={onAdd} onToggle={onToggle} onUpdate={onUpdate} onSetTags={onSetTags} onDelete={onDelete} onReorder={onReorder} onError={onError}/>);
+  return { onTasksChange, onAdd, onToggle, onUpdate, onSetTags, onDelete, onReorder, onError };
 };
 
 beforeEach(() => {
@@ -214,6 +215,27 @@ describe("TaskSection", () => {
     fireEvent.click(screen.getByRole("button", { name: "この項目を削除" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
     expect(onDelete).toHaveBeenCalledTimes(2);
+  });
+
+  it("assigns multiple tags independently from task edits", async () => {
+    const available: Tag[] = [{ id: 1, name: "仕事", color: "blue" }, { id: 2, name: "発想", color: "rose" }, ...Array.from({ length: 98 }, (_, index) => ({ id: index + 3, name: `分類${String(index + 1).padStart(3, "0")}`, color: "slate" }))];
+    const { onSetTags } = setup(tasks, false, "2026-09-05", available);
+    fireEvent.click(screen.getByRole("button", { name: "最初を編集" }));
+    expect(screen.queryByRole("textbox", { name: "タグを探す" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "＋ タグ" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "タグを探す" }), { target: { value: "仕事" } });
+    expect(screen.getByRole("group", { name: "タグの候補" }).querySelectorAll("button")).toHaveLength(1);
+    fireEvent.click(screen.getByRole("button", { name: "仕事を追加" }));
+    await waitFor(() => expect(onSetTags).toHaveBeenCalledWith(1, [1]));
+    fireEvent.change(screen.getByRole("textbox", { name: "タグを探す" }), { target: { value: "発想" } });
+    fireEvent.click(screen.getByRole("button", { name: "発想を追加" }));
+    await waitFor(() => expect(onSetTags).toHaveBeenCalledWith(1, [1, 2]));
+    expect(screen.getByRole("button", { name: "仕事を外す" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "仕事を外す" }));
+    await waitFor(() => expect(onSetTags).toHaveBeenCalledWith(1, [2]));
+    fireEvent.keyDown(screen.getByRole("textbox", { name: "タグを探す" }), { key: "Escape" });
+    expect(screen.queryByRole("textbox", { name: "タグを探す" })).not.toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "タスクを編集" })).toBeInTheDocument();
   });
 
 });

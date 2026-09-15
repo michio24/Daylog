@@ -20,9 +20,9 @@ export function Header({ screen, date, settings, onNavigate, onSettings }: Props
   return <header className="app-header">
     <div className="brand"><span>Daylog</span><small>{formatHeaderDate(date)}</small></div>
     <nav aria-label="メインナビゲーション">
-      {(["today", "history", "search", "settings"] as Screen[]).map((item) =>
+      {(["today", "history", "search", "tags", "settings"] as Screen[]).map((item) =>
         <button key={item} className={screen === item ? "active" : ""} onClick={() => onNavigate(item)}>
-          {{ today: "今日", history: "履歴", search: "検索", settings: "設定" }[item]}
+          {{ today: "今日", history: "履歴", search: "検索", tags: "タグ", settings: "設定" }[item]}
         </button>)}
     </nav>
     <div className="header-actions">

@@ -14,6 +14,7 @@ vi.mock("../services/api", () => ({
     saveReview: vi.fn(),
     updateNoteCard: vi.fn(),
     updateEntry: vi.fn(),
+    setEntryTags: vi.fn(),
     exportDayMarkdown: vi.fn()
   }
 }));
@@ -25,7 +26,7 @@ const day: DayData = {
   isClosed: false,
   tasks: [],
   entries: [],
-  notes: [{ id: 10, title: "メモ", markdown: "変更前", sortOrder: 0 }],
+  notes: [{ id: 10, title: "メモ", markdown: "変更前", sortOrder: 0, tags: [] }],
   review: { good: "", bad: "", carryOver: "" }
 };
 
@@ -37,11 +38,12 @@ describe("TodayPage Markdown export", () => {
     vi.mocked(api.saveReview).mockResolvedValue();
     vi.mocked(api.updateNoteCard).mockImplementation(async (note) => note);
     vi.mocked(api.updateEntry).mockImplementation(async (entry) => entry);
+    vi.mocked(api.setEntryTags).mockResolvedValue([]);
     vi.mocked(api.exportDayMarkdown).mockResolvedValue({ markdownPath: "C:\\Exports\\2026年09月05日(土).md", assetsDirectory: null, attachmentCount: 0 });
   });
 
   it("flushes edited content before opening the save dialog and exporting", async () => {
-    render(<TodayPage day={day} settings={settings} onDay={vi.fn()} onOpenDate={vi.fn()} onError={vi.fn()}/>);
+    render(<TodayPage day={day} tags={[]} settings={settings} onDay={vi.fn()} onOpenDate={vi.fn()} onError={vi.fn()}/>);
     fireEvent.change(screen.getByLabelText("今日よかったこと"), { target: { value: "よかった" } });
     fireEvent.click(screen.getByRole("button", { name: "「メモ」を編集" }));
     fireEvent.change(screen.getByLabelText("Markdown本文"), { target: { value: "変更後" } });
@@ -58,11 +60,26 @@ describe("TodayPage Markdown export", () => {
 
   it("does nothing when the save dialog is cancelled", async () => {
     vi.mocked(save).mockResolvedValue(null);
-    render(<TodayPage day={{ ...day, notes: [] }} settings={settings} onDay={vi.fn()} onOpenDate={vi.fn()} onError={vi.fn()}/>);
+    render(<TodayPage day={{ ...day, notes: [] }} tags={[]} settings={settings} onDay={vi.fn()} onOpenDate={vi.fn()} onError={vi.fn()}/>);
     fireEvent.click(screen.getByRole("button", { name: "Markdownで保存" }));
     await waitFor(() => expect(save).toHaveBeenCalled());
     expect(api.exportDayMarkdown).not.toHaveBeenCalled();
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+
+  it("updates the current record after assigning a tag", async () => {
+    const tag = { id: 7, name: "仕事", color: "blue" };
+    const currentDay = { ...day, entries: [{ id: 1, icon: "", body: "朝会", occurredAt: "2026-09-05T10:00:00+09:00", tags: [] }], notes: [] };
+    const onDay = vi.fn();
+    vi.mocked(api.setEntryTags).mockResolvedValue([tag]);
+    render(<TodayPage day={currentDay} tags={[tag]} settings={settings} onDay={onDay} onOpenDate={vi.fn()} onError={vi.fn()}/>);
+    fireEvent.click(screen.getByRole("button", { name: "記録「朝会」を編集" }));
+    fireEvent.click(screen.getByRole("button", { name: "＋ タグ" }));
+    fireEvent.click(screen.getByRole("button", { name: "仕事を追加" }));
+    await waitFor(() => expect(api.setEntryTags).toHaveBeenCalledWith(1, [7]));
+    const update = onDay.mock.calls.at(-1)?.[0] as (value: DayData) => DayData;
+    expect(update(currentDay).entries[0].tags).toEqual([tag]);
+    expect(api.updateEntry).not.toHaveBeenCalled();
   });
 
   it("reorders an edited entry by its new time", async () => {
@@ -72,7 +89,7 @@ describe("TodayPage Markdown export", () => {
     ];
     const currentDay = { ...day, entries, notes: [] };
     const onDay = vi.fn();
-    render(<TodayPage day={currentDay} settings={settings} onDay={onDay} onOpenDate={vi.fn()} onError={vi.fn()}/>);
+    render(<TodayPage day={currentDay} tags={[]} settings={settings} onDay={onDay} onOpenDate={vi.fn()} onError={vi.fn()}/>);
     fireEvent.click(screen.getByRole("button", { name: "記録「遅い」を編集" }));
     fireEvent.change(screen.getByLabelText("記録の時"), { target: { value: "08" } });
     fireEvent.click(screen.getByRole("button", { name: "保存" }));
@@ -86,7 +103,7 @@ describe("TodayPage Markdown export", () => {
     const currentDay = { ...day, entries: [{ id: 1, icon: "", body: "移動する", occurredAt: "2026-09-05T10:00:00+09:00" }], notes: [] };
     const onDay = vi.fn();
     const onOpenDate = vi.fn();
-    render(<TodayPage day={currentDay} settings={settings} onDay={onDay} onOpenDate={onOpenDate} onError={vi.fn()}/>);
+    render(<TodayPage day={currentDay} tags={[]} settings={settings} onDay={onDay} onOpenDate={onOpenDate} onError={vi.fn()}/>);
     fireEvent.click(screen.getByRole("button", { name: "記録「移動する」を編集" }));
     fireEvent.click(screen.getByRole("button", { name: "日付を変更" }));
     fireEvent.change(screen.getByLabelText("記録日"), { target: { value: "2026-09-07" } });

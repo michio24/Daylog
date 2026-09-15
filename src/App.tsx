@@ -4,9 +4,10 @@ import { Header } from "./components/Header";
 import { HistoryPage } from "./pages/HistoryPage";
 import { SearchPage } from "./pages/SearchPage";
 import { SettingsPage } from "./pages/SettingsPage";
+import { TagsPage } from "./pages/TagsPage";
 import { TodayPage, type TodayPageHandle } from "./pages/TodayPage";
 import { api } from "./services/api";
-import type { DayData, Screen, Settings } from "./types";
+import type { DayData, Screen, Settings, Tag } from "./types";
 import { localDateKey } from "./utils/date";
 
 const defaults: Settings = { aiEnabled: false, modelPath: "", backend: "Auto", contextSize: null, generationLength: "標準", backupGenerations: 30, theme: "light", layout: "one" };
@@ -15,11 +16,12 @@ export default function App() {
   const [screen, setScreen] = useState<Screen>("today");
   const [day, setDay] = useState<DayData | null>(null);
   const [settings, setSettings] = useState<Settings>(defaults);
+  const [tags, setTags] = useState<Tag[]>([]);
   const [error, setError] = useState("");
   const taskInput = useRef<HTMLInputElement | null>(null);
   const todayPage = useRef<TodayPageHandle>(null);
   const loadDay = useCallback(async (date?: string) => { try { setDay(date ? await api.getDay(date) : await api.getToday()); setScreen("today"); } catch (e) { setError(`データを読み込めませんでした: ${String(e)}`); } }, []);
-  useEffect(() => { void Promise.all([loadDay(), api.getSettings().then(setSettings).catch(() => undefined)]); }, [loadDay]);
+  useEffect(() => { void Promise.all([loadDay(), api.getSettings().then(setSettings).catch(() => undefined), api.listTags().then(setTags).catch((e) => setError(`タグを読み込めませんでした: ${String(e)}`))]); }, [loadDay]);
   useEffect(() => {
     if (!("__TAURI_INTERNALS__" in window)) return;
     const appWindow = getCurrentWindow();
@@ -50,12 +52,13 @@ export default function App() {
   }, []);
   const activeDate = day?.dayDate || localDateKey();
   return <div data-theme={settings.theme} className="app-shell">
-    <Header screen={screen} date={activeDate} settings={settings} onNavigate={(next) => { void (async () => { try { await todayPage.current?.flush(); if (next === "today" && activeDate !== localDateKey()) await loadDay(); else setScreen(next); } catch (navigationError) { setError(`データを保存できないため画面を移動しませんでした: ${String(navigationError)}`); } })(); }} onSettings={updateSettings}/>
+    <Header screen={screen} date={activeDate} settings={settings} onNavigate={(next) => { void (async () => { try { await todayPage.current?.flush(); if (next === "today" && screen === "tags") await loadDay(activeDate); else if (next === "today" && activeDate !== localDateKey()) await loadDay(); else setScreen(next); if (next === "tags" || next === "search" || next === "today") setTags(await api.listTags()); } catch (navigationError) { setError(`データを保存できないため画面を移動しませんでした: ${String(navigationError)}`); } })(); }} onSettings={updateSettings}/>
     {error && <div className="toast" role="alert">{error}<button onClick={() => setError("")}>×</button></div>}
     {!day ? <main className="loading">記録を読み込んでいます…</main> : <>
-      {screen === "today" && <TodayPage ref={todayPage} key={day.dayDate} day={day} settings={settings} onDay={setDay} onOpenDate={loadDay} onError={setError}/>}
+      {screen === "today" && <TodayPage ref={todayPage} key={day.dayDate} day={day} tags={tags} settings={settings} onDay={setDay} onOpenDate={loadDay} onError={setError}/>}
       {screen === "history" && <HistoryPage onOpenDay={(selected) => { setDay(selected); setScreen("today"); }}/>} 
-      {screen === "search" && <SearchPage onOpen={(date) => void loadDay(date)}/>} 
+      {screen === "search" && <SearchPage tags={tags} onOpen={(date) => void loadDay(date)}/>}
+      {screen === "tags" && <TagsPage tags={tags} onTags={setTags} onError={setError}/>}
       {screen === "settings" && <SettingsPage settings={settings} onChange={updateSettings} onHolidayUpdated={async () => setDay(await api.getDay(activeDate))}/>}
     </>}
   </div>;

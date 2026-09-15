@@ -48,6 +48,10 @@ impl Database {
       CREATE TABLE IF NOT EXISTS ai_summaries(id INTEGER PRIMARY KEY AUTOINCREMENT,day_id INTEGER NOT NULL,summary TEXT,one_line TEXT,achievements_json TEXT,tomorrow_candidates_json TEXT,model_name TEXT,source_hash TEXT,generated_at TEXT NOT NULL,FOREIGN KEY(day_id) REFERENCES days(id) ON DELETE CASCADE);
       CREATE TABLE IF NOT EXISTS ai_runs(id INTEGER PRIMARY KEY AUTOINCREMENT,request_id TEXT NOT NULL UNIQUE,day_id INTEGER NOT NULL,status TEXT NOT NULL,model_name TEXT,backend TEXT,started_at TEXT,finished_at TEXT,elapsed_ms INTEGER,error_message TEXT,FOREIGN KEY(day_id) REFERENCES days(id) ON DELETE CASCADE);
       CREATE TABLE IF NOT EXISTS custom_holidays(date TEXT PRIMARY KEY,name TEXT NOT NULL,created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS tags(id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT NOT NULL UNIQUE COLLATE NOCASE,color TEXT NOT NULL,created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS task_tags(task_id INTEGER NOT NULL,tag_id INTEGER NOT NULL,PRIMARY KEY(task_id,tag_id),FOREIGN KEY(task_id) REFERENCES tasks(id) ON DELETE CASCADE,FOREIGN KEY(tag_id) REFERENCES tags(id) ON DELETE CASCADE);
+      CREATE TABLE IF NOT EXISTS entry_tags(entry_id INTEGER NOT NULL,tag_id INTEGER NOT NULL,PRIMARY KEY(entry_id,tag_id),FOREIGN KEY(entry_id) REFERENCES entries(id) ON DELETE CASCADE,FOREIGN KEY(tag_id) REFERENCES tags(id) ON DELETE CASCADE);
+      CREATE TABLE IF NOT EXISTS note_card_tags(note_card_id INTEGER NOT NULL,tag_id INTEGER NOT NULL,PRIMARY KEY(note_card_id,tag_id),FOREIGN KEY(note_card_id) REFERENCES note_cards(id) ON DELETE CASCADE,FOREIGN KEY(tag_id) REFERENCES tags(id) ON DELETE CASCADE);
       CREATE VIRTUAL TABLE IF NOT EXISTS search_index USING fts5(entity_type UNINDEXED,entity_id UNINDEXED,day_id UNINDEXED,content,tokenize='unicode61');
       CREATE INDEX IF NOT EXISTS idx_tasks_day ON tasks(day_id); CREATE INDEX IF NOT EXISTS idx_entries_day_time ON entries(day_id,occurred_at); CREATE INDEX IF NOT EXISTS idx_note_cards_day_order ON note_cards(day_id,sort_order,id);")
       .map_err(|e| e.to_string())?;
@@ -149,6 +153,61 @@ impl Database {
         .map_err(|e| e.to_string())
     }
 
+    fn entity_tags(conn: &Connection, table: &str, column: &str, id: i64) -> Result<Vec<Tag>, String> {
+        let sql = format!("SELECT t.id,t.name,t.color FROM tags t JOIN {table} x ON x.tag_id=t.id WHERE x.{column}=?1 ORDER BY t.name,t.id");
+        let mut query = conn.prepare(&sql).map_err(|e| e.to_string())?;
+        let tags = query.query_map([id], |row| Ok(Tag { id: row.get(0)?, name: row.get(1)?, color: row.get(2)? }))
+            .map_err(|e| e.to_string())?.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())?;
+        Ok(tags)
+    }
+
+    fn task_tags(conn: &Connection, id: i64) -> Result<Vec<Tag>, String> { Self::entity_tags(conn, "task_tags", "task_id", id) }
+    fn entry_tags(conn: &Connection, id: i64) -> Result<Vec<Tag>, String> { Self::entity_tags(conn, "entry_tags", "entry_id", id) }
+    fn note_tags(conn: &Connection, id: i64) -> Result<Vec<Tag>, String> { Self::entity_tags(conn, "note_card_tags", "note_card_id", id) }
+
+    pub fn list_tags(&self) -> Result<Vec<Tag>, String> {
+        let conn = self.0.lock().map_err(|e| e.to_string())?;
+        let mut query = conn.prepare("SELECT id,name,color FROM tags ORDER BY name,id").map_err(|e| e.to_string())?;
+        let tags = query.query_map([], |row| Ok(Tag { id: row.get(0)?, name: row.get(1)?, color: row.get(2)? }))
+            .map_err(|e| e.to_string())?.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())?;
+        Ok(tags)
+    }
+    pub fn create_tag(&self, name: &str, color: &str) -> Result<Tag, String> {
+        let conn = self.0.lock().map_err(|e| e.to_string())?;
+        conn.execute("INSERT INTO tags(name,color,created_at,updated_at) VALUES(?1,?2,?3,?3)", params![name,color,now()]).map_err(|e| e.to_string())?;
+        Ok(Tag { id: conn.last_insert_rowid(), name: name.into(), color: color.into() })
+    }
+    pub fn update_tag(&self, tag: &Tag) -> Result<Tag, String> {
+        let conn = self.0.lock().map_err(|e| e.to_string())?;
+        let changed = conn.execute("UPDATE tags SET name=?2,color=?3,updated_at=?4 WHERE id=?1", params![tag.id,tag.name,tag.color,now()]).map_err(|e| e.to_string())?;
+        if changed == 0 { return Err("タグが見つかりません".into()); }
+        Ok(tag.clone())
+    }
+    pub fn delete_tag(&self, id: i64) -> Result<(), String> {
+        let conn = self.0.lock().map_err(|e| e.to_string())?;
+        let changed = conn.execute("DELETE FROM tags WHERE id=?1", [id]).map_err(|e| e.to_string())?;
+        if changed == 0 { return Err("タグが見つかりません".into()); }
+        Ok(())
+    }
+    fn set_entity_tags(&self, id: i64, ids: &[i64], table: &str, entity_table: &str, column: &str) -> Result<Vec<Tag>, String> {
+        let mut conn = self.0.lock().map_err(|e| e.to_string())?;
+        let tx = conn.transaction().map_err(|e| e.to_string())?;
+        let exists: bool = tx.query_row(&format!("SELECT EXISTS(SELECT 1 FROM {entity_table} WHERE id=?1)"), [id], |r| r.get(0)).map_err(|e| e.to_string())?;
+        if !exists { return Err("項目が見つかりません".into()); }
+        let unique: HashSet<i64> = ids.iter().copied().collect();
+        for tag_id in &unique {
+            let exists: bool = tx.query_row("SELECT EXISTS(SELECT 1 FROM tags WHERE id=?1)", [tag_id], |r| r.get(0)).map_err(|e| e.to_string())?;
+            if !exists { return Err("タグが見つかりません".into()); }
+        }
+        tx.execute(&format!("DELETE FROM {table} WHERE {column}=?1"), [id]).map_err(|e| e.to_string())?;
+        for tag_id in unique { tx.execute(&format!("INSERT INTO {table}({column},tag_id) VALUES(?1,?2)"), params![id,tag_id]).map_err(|e| e.to_string())?; }
+        tx.commit().map_err(|e| e.to_string())?;
+        Self::entity_tags(&conn, table, column, id)
+    }
+    pub fn set_task_tags(&self, id: i64, ids: &[i64]) -> Result<Vec<Tag>, String> { self.set_entity_tags(id, ids, "task_tags", "tasks", "task_id") }
+    pub fn set_entry_tags(&self, id: i64, ids: &[i64]) -> Result<Vec<Tag>, String> { self.set_entity_tags(id, ids, "entry_tags", "entries", "entry_id") }
+    pub fn set_note_card_tags(&self, id: i64, ids: &[i64]) -> Result<Vec<Tag>, String> { self.set_entity_tags(id, ids, "note_card_tags", "note_cards", "note_card_id") }
+
     pub fn get_day(&self, date: &str) -> Result<DayData, String> {
         let conn = self.0.lock().map_err(|e| e.to_string())?;
         let id = Self::day_id(&conn, date)?;
@@ -159,7 +218,7 @@ impl Database {
             .map_err(|e| e.to_string())?
             != 0;
         let mut q=conn.prepare("SELECT id,title,is_completed,sort_order,priority,carried_over,completed_at,due_at FROM tasks WHERE day_id=?1 ORDER BY sort_order,id").map_err(|e|e.to_string())?;
-        let tasks = q
+        let mut tasks = q
             .query_map([id], |r| {
                 Ok(Task {
                     id: r.get(0)?,
@@ -170,13 +229,15 @@ impl Database {
                     carried_over: r.get::<_, i64>(5)? != 0,
                     completed_at: r.get(6)?,
                     due_at: r.get(7)?,
+                    tags: vec![],
                 })
             })
             .map_err(|e| e.to_string())?
             .collect::<Result<Vec<_>, _>>()
             .map_err(|e| e.to_string())?;
+        for task in &mut tasks { task.tags = Self::task_tags(&conn, task.id)?; }
         let mut q=conn.prepare("SELECT id,icon,title,body,occurred_at FROM entries WHERE day_id=?1 ORDER BY occurred_at,id").map_err(|e|e.to_string())?;
-        let entries = q
+        let mut entries = q
             .query_map([id], |r| {
                 Ok(Entry {
                     id: r.get(0)?,
@@ -184,26 +245,30 @@ impl Database {
                     title: r.get(2)?,
                     body: r.get(3)?,
                     occurred_at: r.get(4)?,
+                    tags: vec![],
                 })
             })
             .map_err(|e| e.to_string())?
             .collect::<Result<Vec<_>, _>>()
             .map_err(|e| e.to_string())?;
+        for entry in &mut entries { entry.tags = Self::entry_tags(&conn, entry.id)?; }
         let mut q = conn
             .prepare("SELECT id,title,markdown,sort_order FROM note_cards WHERE day_id=?1 ORDER BY sort_order,id")
             .map_err(|e| e.to_string())?;
-        let notes = q
+        let mut notes = q
             .query_map([id], |r| {
                 Ok(NoteCard {
                     id: r.get(0)?,
                     title: r.get(1)?,
                     markdown: r.get(2)?,
                     sort_order: r.get(3)?,
+                    tags: vec![],
                 })
             })
             .map_err(|e| e.to_string())?
             .collect::<Result<Vec<_>, _>>()
             .map_err(|e| e.to_string())?;
+        for note in &mut notes { note.tags = Self::note_tags(&conn, note.id)?; }
         let review = conn
             .query_row(
                 "SELECT good,bad,carry_over FROM reviews WHERE day_id=?1",
@@ -264,6 +329,7 @@ impl Database {
             carried_over: carried,
             completed_at: None,
             due_at: None,
+            tags: vec![],
         })
     }
     pub fn update_task(&self, t: &Task) -> Result<Task, String> {
@@ -280,6 +346,7 @@ impl Database {
         self.index(&conn, "task", t.id, day, &t.title)?;
         Ok(Task {
             completed_at: completed,
+            tags: Self::task_tags(&conn, t.id)?,
             ..t.clone()
         })
     }
@@ -328,7 +395,7 @@ impl Database {
         let mut query = conn
             .prepare("SELECT id,title,is_completed,sort_order,priority,carried_over,completed_at,due_at FROM tasks WHERE day_id=?1 ORDER BY sort_order,id")
             .map_err(|e| e.to_string())?;
-        let tasks = query
+        let mut tasks = query
             .query_map([day], |row| {
                 Ok(Task {
                     id: row.get(0)?,
@@ -339,11 +406,13 @@ impl Database {
                     carried_over: row.get::<_, i64>(5)? != 0,
                     completed_at: row.get(6)?,
                     due_at: row.get(7)?,
+                    tags: vec![],
                 })
             })
             .map_err(|e| e.to_string())?
             .collect::<Result<Vec<_>, _>>()
             .map_err(|e| e.to_string())?;
+        for task in &mut tasks { task.tags = Self::task_tags(&conn, task.id)?; }
         Ok(tasks)
     }
     pub fn create_entry(&self, date: &str, body: &str, icon: &str) -> Result<Entry, String> {
@@ -359,6 +428,7 @@ impl Database {
             title: None,
             body: body.into(),
             occurred_at: stamp,
+            tags: vec![],
         })
     }
     pub fn update_entry(&self, e: &Entry, target_date: &str) -> Result<Entry, String> {
@@ -372,7 +442,7 @@ impl Database {
             day,
             &format!("{} {}", e.title.as_deref().unwrap_or(""), e.body),
         )?;
-        Ok(e.clone())
+        Ok(Entry { tags: Self::entry_tags(&conn, e.id)?, ..e.clone() })
     }
     pub fn create_note_card(&self, date: &str) -> Result<NoteCard, String> {
         let conn = self.0.lock().map_err(|e| e.to_string())?;
@@ -395,6 +465,7 @@ impl Database {
             title: String::new(),
             markdown: String::new(),
             sort_order: order,
+            tags: vec![],
         })
     }
     pub fn get_note_card(&self, id: i64) -> Result<NoteCard, String> {
@@ -408,12 +479,14 @@ impl Database {
                     title: row.get(1)?,
                     markdown: row.get(2)?,
                     sort_order: row.get(3)?,
+                    tags: vec![],
                 })
             },
         )
         .optional()
         .map_err(|e| e.to_string())?
         .ok_or_else(|| "メモが見つかりません".into())
+        .and_then(|mut card| { card.tags = Self::note_tags(&conn, card.id)?; Ok(card) })
     }
     pub fn update_note_card(&self, card: &NoteCard) -> Result<NoteCard, String> {
         let conn = self.0.lock().map_err(|e| e.to_string())?;
@@ -441,7 +514,7 @@ impl Database {
             &format!("{} {}", card.title, card.markdown),
         )?;
         Self::sync_note_attachments(&conn, card.id, &card.markdown)?;
-        Ok(card.clone())
+        Ok(NoteCard { tags: Self::note_tags(&conn, card.id)?, ..card.clone() })
     }
     pub fn delete_note_card(&self, id: i64) -> Result<(), String> {
         let conn = self.0.lock().map_err(|e| e.to_string())?;
@@ -560,18 +633,20 @@ impl Database {
         let mut query = conn
             .prepare("SELECT id,title,markdown,sort_order FROM note_cards WHERE day_id=?1 ORDER BY sort_order,id")
             .map_err(|e| e.to_string())?;
-        let cards = query
+        let mut cards = query
             .query_map([day], |r| {
                 Ok(NoteCard {
                     id: r.get(0)?,
                     title: r.get(1)?,
                     markdown: r.get(2)?,
                     sort_order: r.get(3)?,
+                    tags: vec![],
                 })
             })
             .map_err(|e| e.to_string())?
             .collect::<Result<Vec<_>, _>>()
             .map_err(|e| e.to_string())?;
+        for card in &mut cards { card.tags = Self::note_tags(&conn, card.id)?; }
         Ok(cards)
     }
     pub fn save_review(&self, date: &str, r: &Review) -> Result<(), String> {
@@ -685,25 +760,37 @@ impl Database {
             .map_err(|e| e.to_string())?;
         Ok(())
     }
-    pub fn search(&self, query: &str) -> Result<Vec<SearchResult>, String> {
-        if query.trim().is_empty() {
+    pub fn search(&self, query: &str, tag_id: Option<i64>) -> Result<Vec<SearchResult>, String> {
+        if query.trim().is_empty() && tag_id.is_none() {
             return Ok(vec![]);
         }
         let conn = self.0.lock().map_err(|e| e.to_string())?;
         let pattern = format!("%{}%", query.trim());
-        let mut q=conn.prepare("SELECT s.entity_type,s.entity_id,d.day_date,s.content FROM search_index s JOIN days d ON d.id=s.day_id WHERE s.content LIKE ?1 ORDER BY d.day_date DESC LIMIT 100").map_err(|e|e.to_string())?;
-        let rows = q
-            .query_map([pattern], |r| {
-                Ok(SearchResult {
-                    entity_type: r.get(0)?,
-                    entity_id: r.get(1)?,
-                    day_date: r.get(2)?,
-                    excerpt: r.get(3)?,
-                })
-            })
-            .map_err(|e| e.to_string())?
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(|e| e.to_string())?;
+        let sql = if tag_id.is_some() {
+            "SELECT entity_type,entity_id,day_date,content FROM (
+               SELECT 'task' AS entity_type,t.id AS entity_id,d.day_date,t.title AS content FROM tasks t JOIN days d ON d.id=t.day_id JOIN task_tags x ON x.task_id=t.id WHERE x.tag_id=?2
+               UNION ALL
+               SELECT 'entry',e.id,d.day_date,COALESCE(e.title,'')||' '||e.body FROM entries e JOIN days d ON d.id=e.day_id JOIN entry_tags x ON x.entry_id=e.id WHERE x.tag_id=?2
+               UNION ALL
+               SELECT 'note_card',n.id,d.day_date,n.title||' '||n.markdown FROM note_cards n JOIN days d ON d.id=n.day_id JOIN note_card_tags x ON x.note_card_id=n.id WHERE x.tag_id=?2
+             ) WHERE content LIKE ?1 ORDER BY day_date DESC LIMIT 100"
+        } else {
+            "SELECT s.entity_type,s.entity_id,d.day_date,s.content FROM search_index s JOIN days d ON d.id=s.day_id WHERE s.content LIKE ?1 ORDER BY d.day_date DESC LIMIT 100"
+        };
+        let mut q=conn.prepare(sql).map_err(|e|e.to_string())?;
+        let mut cursor = if tag_id.is_some() { q.query(params![pattern,tag_id]) } else { q.query(params![pattern]) }.map_err(|e| e.to_string())?;
+        let mut rows = vec![];
+        while let Some(r) = cursor.next().map_err(|e| e.to_string())? {
+            rows.push(SearchResult { entity_type: r.get(0).map_err(|e| e.to_string())?, entity_id: r.get(1).map_err(|e| e.to_string())?, day_date: r.get(2).map_err(|e| e.to_string())?, excerpt: r.get(3).map_err(|e| e.to_string())?, tags: vec![] });
+        }
+        for row in &mut rows {
+            row.tags = match row.entity_type.as_str() {
+                "task" => Self::task_tags(&conn, row.entity_id)?,
+                "entry" => Self::entry_tags(&conn, row.entity_id)?,
+                "note_card" => Self::note_tags(&conn, row.entity_id)?,
+                _ => vec![],
+            };
+        }
         Ok(rows)
     }
     pub fn snapshot_json(&self, date: &str) -> Result<(i64, serde_json::Value), String> {
@@ -805,6 +892,75 @@ mod tests {
                 .join("japanese_holidays.csv"),
         )
         .unwrap()
+    }
+
+    #[test]
+    fn tags_migrate_and_filter_tasks_and_note_cards() {
+        let path = std::env::temp_dir().join(format!("daylog-tag-test-{}-{}.db", std::process::id(), Local::now().timestamp_nanos_opt().unwrap_or_default()));
+        {
+            let conn = Connection::open(&path).unwrap();
+            conn.execute_batch("CREATE TABLE days(id INTEGER PRIMARY KEY AUTOINCREMENT,day_date TEXT NOT NULL UNIQUE,is_closed INTEGER NOT NULL DEFAULT 0,created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
+                CREATE TABLE tasks(id INTEGER PRIMARY KEY AUTOINCREMENT,day_id INTEGER NOT NULL,title TEXT NOT NULL,is_completed INTEGER NOT NULL DEFAULT 0,sort_order INTEGER NOT NULL DEFAULT 0,priority INTEGER,carried_over INTEGER NOT NULL DEFAULT 0,created_at TEXT NOT NULL,completed_at TEXT,due_at TEXT);
+                INSERT INTO days(id,day_date,created_at,updated_at) VALUES(1,'2026-09-05','now','now');
+                INSERT INTO tasks(id,day_id,title,created_at) VALUES(1,1,'既存タスク','now');").unwrap();
+        }
+        let db = open_test_database(&path);
+        assert!(db.get_day("2026-09-05").unwrap().tasks[0].tags.is_empty());
+        let work = db.create_tag("仕事", "blue").unwrap();
+        let idea = db.create_tag("発想", "rose").unwrap();
+        assert!(db.create_tag("仕事", "green").is_err());
+        let task = db.create_task("2026-09-05", "朝会", false).unwrap();
+        let note = db.create_note_card("2026-09-05").unwrap();
+        db.update_note_card(&NoteCard { title: "会議メモ".into(), markdown: "確認事項".into(), ..note.clone() }).unwrap();
+        assert_eq!(db.set_task_tags(task.id, &[work.id, idea.id, work.id]).unwrap().len(), 2);
+        db.set_note_card_tags(note.id, &[work.id]).unwrap();
+        assert!(db.set_task_tags(task.id, &[9999]).is_err());
+        assert_eq!(db.get_day("2026-09-05").unwrap().tasks.iter().find(|item| item.id == task.id).unwrap().tags.len(), 2);
+        assert_eq!(db.search("", Some(work.id)).unwrap().len(), 2);
+        assert_eq!(db.search("朝会", Some(work.id)).unwrap().len(), 1);
+        assert!(db.search("確認事項", Some(idea.id)).unwrap().is_empty());
+        db.update_tag(&Tag { name: "業務".into(), color: "teal".into(), ..work.clone() }).unwrap();
+        assert_eq!(db.search("", Some(work.id)).unwrap()[0].tags.iter().find(|tag| tag.id == work.id).unwrap().color, "teal");
+        db.delete_tag(work.id).unwrap();
+        assert_eq!(db.get_day("2026-09-05").unwrap().notes[0].tags.len(), 0);
+        assert_eq!(db.get_day("2026-09-05").unwrap().tasks.iter().find(|item| item.id == task.id).unwrap().tags.len(), 1);
+        db.delete_entity("tasks", task.id).unwrap();
+        db.delete_note_card(note.id).unwrap();
+        assert!(db.search("", Some(idea.id)).unwrap().is_empty());
+        drop(db);
+        let _ = std::fs::remove_file(&path);
+        let _ = std::fs::remove_file(path.with_extension("db-wal"));
+        let _ = std::fs::remove_file(path.with_extension("db-shm"));
+    }
+
+    #[test]
+    fn entry_tags_survive_updates_and_filter_search() {
+        let path = std::env::temp_dir().join(format!("daylog-entry-tag-test-{}-{}.db", std::process::id(), Local::now().timestamp_nanos_opt().unwrap_or_default()));
+        let db = open_test_database(&path);
+        let entry = db.create_entry("2026-09-05", "朝の散歩", "").unwrap();
+        drop(db);
+        let db = open_test_database(&path);
+        assert!(db.get_day("2026-09-05").unwrap().entries[0].tags.is_empty());
+        let walk = db.create_tag("散歩", "green").unwrap();
+        let health = db.create_tag("健康", "blue").unwrap();
+        assert_eq!(db.set_entry_tags(entry.id, &[walk.id, health.id, walk.id]).unwrap().len(), 2);
+        assert!(db.set_entry_tags(entry.id, &[9999]).is_err());
+        assert_eq!(db.search("", Some(walk.id)).unwrap().len(), 1);
+        assert_eq!(db.search("朝", Some(walk.id)).unwrap().len(), 1);
+        assert!(db.search("夜", Some(walk.id)).unwrap().is_empty());
+        let updated = db.update_entry(&Entry { body: "夕方の散歩".into(), ..entry.clone() }, "2026-09-05").unwrap();
+        assert_eq!(updated.tags.len(), 2);
+        db.update_tag(&Tag { name: "ウォーキング".into(), color: "teal".into(), ..walk.clone() }).unwrap();
+        assert_eq!(db.get_day("2026-09-05").unwrap().entries[0].tags.iter().find(|tag| tag.id == walk.id).unwrap().color, "teal");
+        db.delete_tag(walk.id).unwrap();
+        assert_eq!(db.get_day("2026-09-05").unwrap().entries[0].tags.len(), 1);
+        assert_eq!(db.search("", Some(health.id)).unwrap().len(), 1);
+        db.delete_entity("entries", entry.id).unwrap();
+        assert!(db.search("", Some(health.id)).unwrap().is_empty());
+        drop(db);
+        let _ = std::fs::remove_file(&path);
+        let _ = std::fs::remove_file(path.with_extension("db-wal"));
+        let _ = std::fs::remove_file(path.with_extension("db-shm"));
     }
 
     #[test]
@@ -930,11 +1086,11 @@ mod tests {
         assert_eq!(day.entries.len(), 1);
         assert_eq!(day.notes[0].title, "気づき");
         assert!(db
-            .search("シンプル")
+            .search("シンプル", None)
             .unwrap()
             .iter()
             .any(|r| r.entity_type == "note_card"));
-        assert!(!db.search("朝会").unwrap().is_empty());
+        assert!(!db.search("朝会", None).unwrap().is_empty());
         drop(db);
         let _ = std::fs::remove_file(&path);
         let _ = std::fs::remove_file(path.with_extension("db-wal"));
@@ -963,8 +1119,8 @@ mod tests {
         let target = db.get_day("2026-09-07").unwrap();
         assert_eq!(target.entries.len(), 1);
         assert_eq!(target.entries[0].occurred_at, "2026-09-07T23:59:00+09:00");
-        assert!(db.search("変更前").unwrap().is_empty());
-        assert_eq!(db.search("変更後").unwrap()[0].day_date, "2026-09-07");
+        assert!(db.search("変更前", None).unwrap().is_empty());
+        assert_eq!(db.search("変更後", None).unwrap()[0].day_date, "2026-09-07");
 
         drop(db);
         let _ = std::fs::remove_file(&path);
@@ -1051,8 +1207,8 @@ mod tests {
         assert_eq!(day.notes.len(), 1);
         assert_eq!(day.notes[0].title, "移行タイトル");
         assert!(day.notes[0].markdown.contains("本文を保持"));
-        assert_eq!(db.search("本文を保持").unwrap()[0].entity_type, "note_card");
-        assert!(db.search("古い検索").unwrap().is_empty());
+        assert_eq!(db.search("本文を保持", None).unwrap()[0].entity_type, "note_card");
+        assert!(db.search("古い検索", None).unwrap().is_empty());
         drop(db);
         let db = open_test_database(&path);
         assert_eq!(db.get_day("2026-09-04").unwrap().notes.len(), 1);

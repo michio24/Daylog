@@ -3,19 +3,20 @@
 import "@testing-library/jest-dom/vitest";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { Entry } from "../types";
+import type { Entry, Tag } from "../types";
 import { TimelineSection } from "./TimelineSection";
 
 const entry: Entry = { id: 1, icon: "", body: "最初の行\n2行目\n3行目", occurredAt: "2026-09-05T09:00:00+09:00" };
 
-const setup = (entries: Entry[] = [entry], disabled = false) => {
+const setup = (entries: Entry[] = [entry], disabled = false, availableTags: Tag[] = []) => {
   const onAdd = vi.fn().mockResolvedValue(undefined);
   const onUpdate = vi.fn(async (value: Entry) => value);
   const onIcon = vi.fn().mockResolvedValue(undefined);
+  const onSetTags = vi.fn(async (_id: number, ids: number[]) => availableTags.filter((tag) => ids.includes(tag.id)));
   const onDelete = vi.fn().mockResolvedValue(undefined);
   const onError = vi.fn();
-  const result = render(<TimelineSection entries={entries} dayDate="2026-09-05" disabled={disabled} onAdd={onAdd} onUpdate={onUpdate} onIcon={onIcon} onDelete={onDelete} onError={onError}/>);
-  return { ...result, onAdd, onUpdate, onIcon, onDelete, onError };
+  const result = render(<TimelineSection entries={entries} availableTags={availableTags} dayDate="2026-09-05" disabled={disabled} onAdd={onAdd} onUpdate={onUpdate} onIcon={onIcon} onSetTags={onSetTags} onDelete={onDelete} onError={onError}/>);
+  return { ...result, onAdd, onUpdate, onIcon, onSetTags, onDelete, onError };
 };
 
 afterEach(() => { cleanup(); localStorage.clear(); vi.useRealTimers(); });
@@ -139,6 +140,24 @@ describe("TimelineSection", () => {
   it("does not expose editing for a closed day", () => {
     setup([entry], true);
     expect(screen.queryByRole("button", { name: /を編集$/ })).not.toBeInTheDocument();
+  });
+  it("assigns and removes multiple tags from a record without saving its text", async () => {
+    const availableTags: Tag[] = [{ id: 1, name: "仕事", color: "blue" }, { id: 2, name: "発想", color: "rose" }, ...Array.from({ length: 98 }, (_, index) => ({ id: index + 3, name: `分類${index + 1}`, color: "slate" }))];
+    const { onSetTags, onUpdate, rerender } = setup([entry], false, availableTags);
+    fireEvent.click(screen.getByRole("button", { name: /を編集$/ }));
+    fireEvent.click(screen.getByRole("button", { name: "＋ タグ" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "タグを探す" }), { target: { value: "仕事" } });
+    fireEvent.click(screen.getByRole("button", { name: "仕事を追加" }));
+    await waitFor(() => expect(onSetTags).toHaveBeenCalledWith(1, [1]));
+    fireEvent.change(screen.getByRole("textbox", { name: "タグを探す" }), { target: { value: "発想" } });
+    fireEvent.click(screen.getByRole("button", { name: "発想を追加" }));
+    await waitFor(() => expect(onSetTags).toHaveBeenCalledWith(1, [1, 2]));
+    fireEvent.click(screen.getByRole("button", { name: "仕事を外す" }));
+    await waitFor(() => expect(onSetTags).toHaveBeenCalledWith(1, [2]));
+    expect(onUpdate).not.toHaveBeenCalled();
+    rerender(<TimelineSection entries={[{ ...entry, tags: [availableTags[1]] }]} availableTags={availableTags} dayDate="2026-09-05" disabled onAdd={vi.fn()} onUpdate={vi.fn()} onIcon={vi.fn()} onSetTags={vi.fn()} onDelete={vi.fn()} onError={vi.fn()}/>);
+    expect(document.querySelector(".timeline-entry-main .tag-chip")).toHaveTextContent("発想");
+    expect(screen.queryByRole("button", { name: "＋ タグ" })).not.toBeInTheDocument();
   });
   it("deletes from the editor, removes inline delete controls, and locks actions while deleting", async () => {
     const { onDelete, onUpdate } = setup();

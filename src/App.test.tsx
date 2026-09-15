@@ -21,7 +21,9 @@ vi.mock("./services/api", () => ({
     saveReview: vi.fn(),
     runAi: vi.fn(),
     cancelAi: vi.fn(),
-    calendar: vi.fn()
+    calendar: vi.fn(),
+    listTags: vi.fn(),
+    searchByTag: vi.fn()
   }
 }));
 
@@ -47,14 +49,16 @@ describe("App navigation", () => {
       isClosed: false,
       tasks: [],
       entries: [],
-      notes: [{ id: 10, title: "既存メモ", markdown: "", sortOrder: 0 }],
+      notes: [{ id: 10, title: "既存メモ", markdown: "", sortOrder: 0, tags: [] }],
       review: { good: "", bad: "", carryOver: "" }
     };
     vi.mocked(api.getToday).mockResolvedValue(day);
     vi.mocked(api.getDay).mockImplementation(async (date) => ({ ...day, id: 2, dayDate: date }));
     vi.mocked(api.getSettings).mockResolvedValue(settings);
     vi.mocked(api.saveSettings).mockResolvedValue();
-    vi.mocked(api.createNoteCard).mockResolvedValue({ id: 11, title: "", markdown: "", sortOrder: 1 });
+    vi.mocked(api.createNoteCard).mockResolvedValue({ id: 11, title: "", markdown: "", sortOrder: 1, tags: [] });
+    vi.mocked(api.listTags).mockResolvedValue([]);
+    vi.mocked(api.searchByTag).mockResolvedValue([]);
     vi.mocked(api.updateNoteCard).mockImplementation(async (card) => card);
     vi.mocked(api.deleteNoteCard).mockResolvedValue();
     vi.mocked(api.reorderNoteCards).mockResolvedValue([]);
@@ -247,5 +251,14 @@ describe("App navigation", () => {
 
     expect(await screen.findByRole("button", { name: "まとめる記録がありません" })).toBeDisabled();
     expect(api.runAi).not.toHaveBeenCalled();
+  });
+  it("opens the tag tab and reloads today after leaving tag management", async () => {
+    render(<App/>);
+    await screen.findByText("今日のメモ");
+    fireEvent.click(screen.getByRole("button", { name: "タグ" }));
+    expect(await screen.findByText("タグを整理する")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "今日" }));
+    await waitFor(() => expect(api.getDay).toHaveBeenCalledWith(localDateKey()));
+    expect(await screen.findByText("今日のメモ")).toBeInTheDocument();
   });
 });

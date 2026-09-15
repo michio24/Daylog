@@ -211,9 +211,36 @@ pub async fn update_national_holidays(
     crate::holidays::download_and_update(&path).await
 }
 #[tauri::command]
-pub fn search_entries(query: String, db: State<Database>) -> Result<Vec<SearchResult>, String> {
-    db.search(&query)
+pub fn search_entries(query: String, tag_id: Option<i64>, db: State<Database>) -> Result<Vec<SearchResult>, String> {
+    db.search(&query, tag_id)
 }
+
+fn valid_tag(name: &str, color: &str) -> Result<(), String> {
+    if name.trim().is_empty() { return Err("タグ名が空です".into()); }
+    if !ENTRY_COLORS.contains(&color) { return Err("タグの色が正しくありません".into()); }
+    Ok(())
+}
+#[tauri::command]
+pub fn list_tags(db: State<Database>) -> Result<Vec<Tag>, String> { db.list_tags() }
+#[tauri::command]
+pub fn create_tag(name: String, color: String, db: State<Database>) -> Result<Tag, String> {
+    valid_tag(&name, &color)?;
+    db.create_tag(name.trim(), &color)
+}
+#[tauri::command]
+pub fn update_tag(mut tag: Tag, db: State<Database>) -> Result<Tag, String> {
+    valid_tag(&tag.name, &tag.color)?;
+    tag.name = tag.name.trim().into();
+    db.update_tag(&tag)
+}
+#[tauri::command]
+pub fn delete_tag(id: i64, db: State<Database>) -> Result<(), String> { db.delete_tag(id) }
+#[tauri::command]
+pub fn set_task_tags(id: i64, tag_ids: Vec<i64>, db: State<Database>) -> Result<Vec<Tag>, String> { db.set_task_tags(id, &tag_ids) }
+#[tauri::command]
+pub fn set_entry_tags(id: i64, tag_ids: Vec<i64>, db: State<Database>) -> Result<Vec<Tag>, String> { db.set_entry_tags(id, &tag_ids) }
+#[tauri::command]
+pub fn set_note_card_tags(id: i64, tag_ids: Vec<i64>, db: State<Database>) -> Result<Vec<Tag>, String> { db.set_note_card_tags(id, &tag_ids) }
 #[tauri::command]
 pub fn get_settings(store: State<SettingsStore>) -> Result<Settings, String> {
     store.get()

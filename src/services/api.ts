@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { CalendarDay, CustomHoliday, DayData, ExportResult, HolidayUpdateResult, SearchResult, Settings, Task, Entry, NoteCard, Review, AiSummary, Attachment } from "../types";
+import type { CalendarDay, CustomHoliday, DayData, ExportResult, HolidayUpdateResult, SearchResult, Settings, Task, Entry, NoteCard, Review, AiSummary, Attachment, Tag } from "../types";
 
 const call = <T>(command: string, args?: Record<string, unknown>) => invoke<T>(command, args);
 
@@ -29,6 +29,14 @@ export const api = {
   deleteCustomHoliday: (date: string) => call<void>("delete_custom_holiday", { date }),
   updateNationalHolidays: () => call<HolidayUpdateResult>("update_national_holidays"),
   search: (query: string) => call<SearchResult[]>("search_entries", { query }),
+  searchByTag: (query: string, tagId: number | null) => call<SearchResult[]>("search_entries", { query, tagId }),
+  listTags: () => call<Tag[]>("list_tags"),
+  createTag: (name: string, color: string) => call<Tag>("create_tag", { name, color }),
+  updateTag: (tag: Tag) => call<Tag>("update_tag", { tag }),
+  deleteTag: (id: number) => call<void>("delete_tag", { id }),
+  setTaskTags: (id: number, tagIds: number[]) => call<Tag[]>("set_task_tags", { id, tagIds }),
+  setEntryTags: (id: number, tagIds: number[]) => call<Tag[]>("set_entry_tags", { id, tagIds }),
+  setNoteCardTags: (id: number, tagIds: number[]) => call<Tag[]>("set_note_card_tags", { id, tagIds }),
   getSettings: () => call<Settings>("get_settings"),
   saveSettings: (settings: Settings) => call<void>("save_settings", { settings }),
   runAi: (date: string) => call<AiSummary>("run_daily_ai", { date }),

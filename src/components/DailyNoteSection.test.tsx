@@ -6,13 +6,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { save } from "@tauri-apps/plugin-dialog";
 import { DailyNoteSection } from "./DailyNoteSection";
 import { api } from "../services/api";
-import type { NoteCard } from "../types";
+import type { NoteCard, Tag } from "../types";
 
 vi.mock("@tauri-apps/plugin-dialog", () => ({ open: vi.fn(), save: vi.fn() }));
 
 const cards: NoteCard[] = [
-  { id: 1, title: "最初", markdown: "**本文**", sortOrder: 0 },
-  { id: 2, title: "次", markdown: "二枚目", sortOrder: 1 }
+  { id: 1, title: "最初", markdown: "**本文**", sortOrder: 0, tags: [] },
+  { id: 2, title: "次", markdown: "二枚目", sortOrder: 1, tags: [] }
 ];
 
 beforeEach(() => {
@@ -28,15 +28,16 @@ beforeEach(() => {
 });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 
-function setup(notes = cards, disabled = false) {
+function setup(notes = cards, disabled = false, availableTags: Tag[] = []) {
   const onCardsChange = vi.fn();
-  const onCreate = vi.fn(async () => ({ id: 3, title: "", markdown: "", sortOrder: 2 }));
+  const onCreate = vi.fn(async () => ({ id: 3, title: "", markdown: "", sortOrder: 2, tags: [] }));
   const onSave = vi.fn(async (card: NoteCard) => card);
   const onDelete = vi.fn(async () => undefined);
   const onReorder = vi.fn(async (ids: number[]) => ids.map((id, sortOrder) => ({ ...cards.find((card) => card.id === id)!, sortOrder })));
   const onError = vi.fn();
-  render(<DailyNoteSection notes={notes} disabled={disabled} onCardsChange={onCardsChange} onCreate={onCreate} onSave={onSave} onDelete={onDelete} onReorder={onReorder} onError={onError}/>);
-  return { onCardsChange, onCreate, onSave, onDelete, onReorder, onError };
+  const onSetTags = vi.fn(async (_id: number, ids: number[]) => availableTags.filter((tag) => ids.includes(tag.id)));
+  render(<DailyNoteSection notes={notes} availableTags={availableTags} disabled={disabled} onCardsChange={onCardsChange} onCreate={onCreate} onSave={onSave} onSetTags={onSetTags} onDelete={onDelete} onReorder={onReorder} onError={onError}/>);
+  return { onCardsChange, onCreate, onSave, onSetTags, onDelete, onReorder, onError };
 }
 
 const cardOpenButton = (title: string) => screen.getByText(title).closest("article")!.querySelector<HTMLButtonElement>(".note-card-open")!;
@@ -254,5 +255,26 @@ describe("DailyNoteSection", () => {
     fireEvent.click(screen.getByRole("button", { name: "メモを削除" }));
     await waitFor(() => expect(onDelete).toHaveBeenCalledWith(1));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+  it("assigns tags to a memo and disables changes on a closed day", async () => {
+    const tag: Tag = { id: 7, name: "仕事", color: "blue" };
+    const { onSetTags, onSave } = setup(cards, false, [tag]);
+    fireEvent.click(cardOpenButton("最初"));
+    fireEvent.change(screen.getByLabelText("Markdown本文"), { target: { value: "更新した本文" } });
+    fireEvent.click(screen.getByRole("button", { name: "＋ タグ" }));
+    fireEvent.click(screen.getByRole("button", { name: "仕事を追加" }));
+    await waitFor(() => expect(onSetTags).toHaveBeenCalledWith(1, [7]));
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ markdown: "更新した本文" }));
+    expect(onSave.mock.invocationCallOrder[0]).toBeLessThan(onSetTags.mock.invocationCallOrder[0]);
+    fireEvent.keyDown(screen.getByRole("textbox", { name: "タグを探す" }), { key: "Escape" });
+    expect(screen.queryByRole("textbox", { name: "タグを探す" })).not.toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "メモを編集" })).toBeInTheDocument();
+    cleanup();
+    const closed = setup([{ ...cards[0], tags: [tag] }], true, [tag]);
+    fireEvent.click(cardOpenButton("最初"));
+    expect(screen.getAllByText("仕事").length).toBeGreaterThan(0);
+    expect(screen.queryByRole("button", { name: "＋ タグ" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: "タグを探す" })).not.toBeInTheDocument();
+    expect(closed.onSetTags).not.toHaveBeenCalled();
   });
 });

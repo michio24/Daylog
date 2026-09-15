@@ -306,6 +306,7 @@ mod tests {
                     carried_over: false,
                     completed_at: None,
                     due_at: None,
+                    tags: vec![],
                 },
                 Task {
                     id: 2,
@@ -316,6 +317,7 @@ mod tests {
                     carried_over: true,
                     completed_at: None,
                     due_at: None,
+                    tags: vec![],
                 },
             ],
             entries: vec![Entry {
@@ -324,12 +326,14 @@ mod tests {
                 title: None,
                 body: "原因を確認\n修正案を作成".into(),
                 occurred_at: "2026-09-05T09:18:00+09:00".into(),
+                tags: vec![],
             }],
             notes: vec![NoteCard {
                 id: 1,
                 title: "設計メモ".into(),
                 markdown: "**Markdown** を保持".into(),
                 sort_order: 0,
+                tags: vec![],
             }],
             review: Review {
                 good: "予定どおり完了".into(),
@@ -379,6 +383,7 @@ mod tests {
             title: "設計 *確認*".into(),
             markdown: String::new(),
             sort_order: 0,
+            tags: vec![],
         };
         assert_eq!(
             render_note_markdown(&note, &HashMap::new()),

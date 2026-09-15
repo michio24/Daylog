@@ -1,5 +1,9 @@
 use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct Tag { pub id: i64, pub name: String, pub color: String }
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Task {
@@ -11,6 +15,8 @@ pub struct Task {
     pub carried_over: bool,
     pub completed_at: Option<String>,
     pub due_at: Option<String>,
+    #[serde(default)]
+    pub tags: Vec<Tag>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -21,6 +27,8 @@ pub struct Entry {
     pub title: Option<String>,
     pub body: String,
     pub occurred_at: String,
+    #[serde(default)]
+    pub tags: Vec<Tag>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -30,6 +38,8 @@ pub struct NoteCard {
     pub title: String,
     pub markdown: String,
     pub sort_order: i64,
+    #[serde(default)]
+    pub tags: Vec<Tag>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -116,6 +126,7 @@ pub struct SearchResult {
     pub entity_id: i64,
     pub day_date: String,
     pub excerpt: String,
+    pub tags: Vec<Tag>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

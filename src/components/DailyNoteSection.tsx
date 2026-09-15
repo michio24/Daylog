@@ -1,17 +1,20 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState, type ClipboardEvent as ReactClipboardEvent, type DragEvent as ReactDragEvent, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { open, save as saveFile } from "@tauri-apps/plugin-dialog";
 import { createPortal } from "react-dom";
-import type { Attachment, NoteCard, SaveStatus } from "../types";
+import type { Attachment, NoteCard, SaveStatus, Tag } from "../types";
 import { api } from "../services/api";
 import { toggleMarkdownTask } from "../utils/markdown";
 import { formatNoteExportFileName } from "../utils/date";
 import { MarkdownRenderer } from "./MarkdownRenderer";
 import { applyMarkdownEdit, MarkdownToolbar } from "./MarkdownToolbar";
+import { TagChip } from "./TagChip";
+import { TagPicker } from "./TagPicker";
 
 interface Props {
-  notes: NoteCard[]; disabled: boolean;
+  notes: NoteCard[]; availableTags: Tag[]; disabled: boolean;
   onCardsChange: (notes: NoteCard[]) => void;
   onCreate: () => Promise<NoteCard>; onSave: (card: NoteCard) => Promise<NoteCard>;
+  onSetTags: (id: number, ids: number[]) => Promise<Tag[]>;
   onDelete: (id: number) => Promise<void>; onReorder: (orderedIds: number[]) => Promise<NoteCard[]>;
   onError: (message: string) => void;
 }
@@ -19,10 +22,11 @@ export interface DailyNoteSectionHandle { flush: () => Promise<void>; }
 
 const statusText = (status: SaveStatus) => status === "saving" ? "保存中…" : status === "error" ? "保存できませんでした" : "保存済み";
 
-export const DailyNoteSection = forwardRef<DailyNoteSectionHandle, Props>(function DailyNoteSection({ notes, disabled, onCardsChange, onCreate, onSave, onDelete, onReorder, onError }, ref) {
+export const DailyNoteSection = forwardRef<DailyNoteSectionHandle, Props>(function DailyNoteSection({ notes, availableTags, disabled, onCardsChange, onCreate, onSave, onSetTags, onDelete, onReorder, onError }, ref) {
   const [draft, setDraft] = useState<NoteCard | null>(null);
   const [mode, setMode] = useState<"edit" | "view">("edit");
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("saved");
+  const [tagPending, setTagPending] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [exportMessage, setExportMessage] = useState("");
   const [draggedId, setDraggedId] = useState<number | null>(null);
@@ -75,6 +79,19 @@ export const DailyNoteSection = forwardRef<DailyNoteSectionHandle, Props>(functi
       setDraft(null);
       window.setTimeout(() => openerRef.current?.focus());
     } catch (error) { onError(String(error)); }
+  };
+  const changeTags = async (ids: number[]) => {
+    const card = draftRef.current;
+    if (!card || disabled || tagPending) return;
+    setTagPending(true);
+    try {
+      await persistDraft();
+      const selected = await onSetTags(card.id, ids);
+      draftRef.current = { ...draftRef.current!, tags: selected };
+      setDraft((current) => current?.id === card.id ? { ...current, tags: selected } : current);
+      setSaveStatus("saved");
+    } catch (error) { onError(`タグを保存できませんでした: ${String(error)}`); }
+    finally { setTagPending(false); }
   };
 
   useEffect(() => {
@@ -264,7 +281,7 @@ export const DailyNoteSection = forwardRef<DailyNoteSectionHandle, Props>(functi
         <button className="note-card-open" aria-label={`「${note.title.trim() || "無題のメモ"}」を編集`} onPointerDown={(event) => startPointerDrag(event, note.id)} onPointerMove={trackPointerDrag} onPointerUp={finishPointerDrag} onPointerCancel={cancelPointerDrag} onLostPointerCapture={cancelPointerDrag} onDragStart={(event) => event.preventDefault()} onClick={(event) => {
           if (suppressClickRef.current && event.detail !== 0) { event.preventDefault(); return; }
           openEditor(note);
-        }}/><div className="note-card-content"><strong>{note.title.trim() || "無題のメモ"}</strong><div className="markdown note-card-preview"><MarkdownRenderer compact markdown={note.markdown || "_本文はまだありません。_"} checkboxDisabled={disabled} onTaskToggle={(lineNumber, checked) => void toggleCardTask(note, lineNumber, checked)} onError={onError}/></div></div>
+        }}/><div className="note-card-content"><strong>{note.title.trim() || "無題のメモ"}</strong>{(note.tags?.length ?? 0) > 0 && <span className="item-tags">{note.tags.map((tag) => <TagChip key={tag.id} tag={tag}/>)}</span>}<div className="markdown note-card-preview"><MarkdownRenderer compact markdown={note.markdown || "_本文はまだありません。_"} checkboxDisabled={disabled} onTaskToggle={(lineNumber, checked) => void toggleCardTask(note, lineNumber, checked)} onError={onError}/></div></div>
       </article>)}
     </div>}
     {dragPreview && createPortal(<div className="note-card note-card-drag-preview" aria-hidden="true" style={{ left: dragPreview.left, top: dragPreview.top, width: dragPreview.width, height: dragPreview.height }}>
@@ -274,6 +291,7 @@ export const DailyNoteSection = forwardRef<DailyNoteSectionHandle, Props>(functi
       <header><div><span>MARKDOWN NOTE</span><h2 id="note-editor-title">{disabled ? "メモを表示" : "メモを編集"}</h2></div><button className="editor-close" aria-label="編集画面を閉じる" onClick={() => void closeEditor()}>×</button></header>
       <div className="note-editor-toolbar"><div className="segmented"><button className={mode === "edit" ? "active" : ""} disabled={disabled} onClick={() => setMode("edit")}>編集</button><button className={mode === "view" ? "active" : ""} onClick={() => setMode("view")}>表示</button></div><span className={`save-state ${saveStatus}`}>{statusText(saveStatus)}</span></div>
       {mode === "edit" ? <input className="note-title-input" disabled={disabled} aria-label="メモのタイトル" placeholder="タイトル" value={draft.title} onChange={(event) => changeDraft({ title: event.target.value })}/> : <h3 className="note-editor-view-title">{draft.title.trim() || "無題のメモ"}</h3>}
+      <TagPicker available={availableTags} selected={draft.tags ?? []} disabled={disabled} pending={tagPending} onChange={(ids) => void changeTags(ids)}/>
       {mode === "edit" ? <div className="note-edit-body"><MarkdownToolbar textarea={markdownInputRef} value={draft.markdown} disabled={disabled} onChange={(markdown) => changeDraft({ markdown })} onPickFiles={(imageOnly) => void pickFiles(imageOnly)}/><textarea ref={markdownInputRef} className="note-markdown-input" disabled={disabled} aria-label="Markdown本文" value={draft.markdown} onChange={(event) => changeDraft({ markdown: event.target.value })} onKeyDown={editShortcut} onPaste={pasteFiles} onDragOver={(event) => event.preventDefault()} onDrop={dropFiles} placeholder="# 今日考えたこと\n\n- Markdownで自由に"/></div> : <div className="markdown note-editor-preview"><MarkdownRenderer markdown={draft.markdown || "_本文はまだありません。_"} interactive checkboxDisabled={disabled} onTaskToggle={toggleTask} onError={onError}/></div>}
       <footer>{!disabled && <button className="danger-button" onClick={() => void removeCard()}>メモを削除</button>}{exportMessage && <span className="note-editor-export-message" role="status">{exportMessage}</span>}<button className="export-button" aria-label="このメモをMarkdownで保存" disabled={exporting} onClick={() => void exportMarkdown()}>{exporting ? "保存中…" : "Markdownで保存"}</button><button className="primary-button" onClick={() => void closeEditor()}>閉じる</button></footer>
     </div></div>, document.querySelector(".app-shell") ?? document.body)}

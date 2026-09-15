@@ -1,12 +1,15 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { createPortal } from "react-dom";
-import type { Task } from "../types";
+import type { Task, Tag } from "../types";
 import { TimeFields, timePartIsValid } from "./TimeFields";
+import { TagChip } from "./TagChip";
+import { TagPicker } from "./TagPicker";
 
 interface Props {
-  tasks: Task[]; dayDate: string; disabled: boolean; onTasksChange: (tasks: Task[]) => void;
+  tasks: Task[]; availableTags: Tag[]; dayDate: string; disabled: boolean; onTasksChange: (tasks: Task[]) => void;
   onAdd: (title: string) => Promise<void>; onToggle: (task: Task) => Promise<void>;
   onUpdate: (task: Task) => Promise<Task>; onDelete: (id: number) => Promise<void>;
+  onSetTags: (id: number, ids: number[]) => Promise<Tag[]>;
   onReorder: (orderedIds: number[]) => Promise<Task[]>; onError: (message: string) => void;
 }
 
@@ -31,9 +34,11 @@ const formatDueDate = (value: string) => {
   if (!year || !month || !day) return value;
   return new Intl.DateTimeFormat("ja-JP", { month: "long", day: "numeric", weekday: "short" }).format(new Date(year, month - 1, day, 12));
 };
-export function TaskSection({ tasks, dayDate, disabled, onTasksChange, onAdd, onToggle, onUpdate, onDelete, onReorder, onError }: Props) {
+export function TaskSection({ tasks, availableTags, dayDate, disabled, onTasksChange, onAdd, onToggle, onUpdate, onSetTags, onDelete, onReorder, onError }: Props) {
   const [draft, setDraft] = useState("");
   const [editing, setEditing] = useState<Task | null>(null);
+  const [editTags, setEditTags] = useState<Tag[]>([]);
+  const [tagPending, setTagPending] = useState(false);
   const [editTitle, setEditTitle] = useState("");
   const [editDueDate, setEditDueDate] = useState(dayDate);
   const [editDueHour, setEditDueHour] = useState("");
@@ -78,7 +83,7 @@ export function TaskSection({ tasks, dayDate, disabled, onTasksChange, onAdd, on
   };
   const openEditor = (task: Task, element: HTMLElement) => {
     const due = toLocalParts(task.dueAt);
-    opener.current = element; setEditing(task); setEditTitle(task.title);
+    opener.current = element; setEditing(task); setEditTags(task.tags ?? []); setEditTitle(task.title);
     setEditDueDate(due?.date ?? dayDate); setEditDueHour(due?.hour ?? ""); setEditDueMinute(due?.minute ?? "");
     setShowDueDate(Boolean(due && due.date !== dayDate)); setEditError("");
   };
@@ -108,6 +113,13 @@ export function TaskSection({ tasks, dayDate, disabled, onTasksChange, onAdd, on
     try { await onUpdate({ ...editing, title, dueAt }); closeEditor(); }
     catch (error) { setEditError("保存できませんでした"); onError(String(error)); }
     finally { setSaving(false); }
+  };
+  const changeTags = async (ids: number[]) => {
+    if (!editing || tagPending || disabled) return;
+    setTagPending(true); setEditError("");
+    try { setEditTags(await onSetTags(editing.id, ids)); }
+    catch (error) { setEditError("タグを保存できませんでした"); onError(String(error)); }
+    finally { setTagPending(false); }
   };
   const move = async (from: number, to: number) => {
     if (disabled || from === to || to < 0 || to >= tasks.length) return;
@@ -160,7 +172,7 @@ export function TaskSection({ tasks, dayDate, disabled, onTasksChange, onAdd, on
         return <div data-task-id={task.id} className={`task-row${draggedId === task.id ? " dragging" : ""}${draggedId !== null && dropTargetId === task.id ? " drop-target" : ""}`} key={task.id}>
           {!disabled && <button className="task-drag" aria-label={`${task.title}をドラッグして並び替え`} title="ドラッグして並び替え" onPointerDown={(event) => startDrag(event, task.id)} onPointerMove={trackDrag} onPointerUp={finishDrag} onPointerCancel={cancelDrag} onLostPointerCapture={cancelDrag}>⋮⋮</button>}
           <button className={`check ${task.isCompleted ? "checked" : ""}`} disabled={disabled} aria-label={`${task.title}を${task.isCompleted ? "未完了" : "完了"}にする`} onClick={() => void onToggle(task)}>{task.isCompleted ? "✓" : ""}</button>
-          <div className="task-content"><span className={task.isCompleted ? "completed" : ""}>{task.title}</span>{task.dueAt && <time dateTime={task.dueAt} className={overdue ? "overdue" : ""}>{overdue && <span aria-label="期限超過">🔥 </span>}{formatDueAt(task.dueAt)}</time>}</div>
+          <div className="task-content"><span className={task.isCompleted ? "completed" : ""}>{task.title}</span>{task.dueAt && <time dateTime={task.dueAt} className={overdue ? "overdue" : ""}>{overdue && <span aria-label="期限超過">🔥 </span>}{formatDueAt(task.dueAt)}</time>}{(task.tags?.length ?? 0) > 0 && <span className="item-tags">{task.tags.map((tag) => <TagChip key={tag.id} tag={tag}/>)}</span>}</div>
           {task.carriedOver && <em>持ち越し</em>}
           {!disabled && <button className="task-edit subtle-action" aria-label={`${task.title}を編集`} onClick={(event) => openEditor(task, event.currentTarget)}>✎</button>}
         </div>;
@@ -180,6 +192,7 @@ export function TaskSection({ tasks, dayDate, disabled, onTasksChange, onAdd, on
           <button type="button" className="task-deadline-clear" disabled={saving || (!editDueHour && !editDueMinute && editDueDate === dayDate)} onClick={clearDeadline}>期限を解除</button>
         </div>
       </div>
+      <TagPicker available={availableTags} selected={editTags} disabled={disabled} pending={tagPending} onChange={(ids) => void changeTags(ids)}/>
       {editError && <p className="error-text" role="alert">{editError}</p>}
       <footer><button type="button" className="danger-button" disabled={saving || disabled} onClick={() => void deleteEditing()}>{deleting ? "削除中…" : "この項目を削除"}</button><button disabled={saving} onClick={closeEditor}>キャンセル</button><button className="primary-button" disabled={saving} onClick={() => void saveEditor()}>{saving && !deleting ? "保存中…" : "保存"}</button></footer>
     </div></div>, document.querySelector(".app-shell") ?? document.body)}
