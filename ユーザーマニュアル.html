@@ -93,7 +93,7 @@
     .fake-line { height: 7px; margin: 8px 0; border-radius: 8px; background: #e1e5df; }
     .fake-line.short { width: 65%; }
     .caption { margin: 12px 0 0; color: var(--muted); font-size: 14px; text-align: center; }
-    .legend-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 20px; }
+    .legend-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; margin-top: 20px; }
     .legend-grid div { padding: 16px; border-top: 4px solid var(--green); border-radius: 10px; background: #fff; box-shadow: 0 5px 18px rgba(39,52,44,.06); }
     .legend-grid strong { display: block; }
     .legend-grid small { color: var(--muted); }
@@ -186,6 +186,7 @@
         <a href="#screens">画面の見方</a>
         <a href="#daily-flow">一日の流れ</a>
         <a href="#notes">メモの使い方</a>
+        <a href="#tags">タグの使い方</a>
         <a href="#past">過去の記録</a>
         <a href="#settings">設定とバックアップ</a>
         <a href="#shortcuts">便利なキー操作</a>
@@ -226,11 +227,11 @@
 
       <section id="screens">
         <h2>画面の見方</h2>
-        <p>画面上部の名前をクリックすると、4つの画面を切り替えられます。</p>
+        <p>画面上部の名前をクリックすると、5つの画面を切り替えられます。</p>
         <figure class="screen-map" aria-label="Daylogの画面構成図">
           <div class="fake-header">
             <div class="fake-logo">Daylog</div>
-            <div class="fake-nav"><span class="active">今日</span><span>履歴</span><span>検索</span><span>設定</span></div>
+            <div class="fake-nav"><span class="active">今日</span><span>履歴</span><span>検索</span><span>タグ</span><span>設定</span></div>
           </div>
           <div class="fake-body">
             <div class="fake-title"></div>
@@ -247,6 +248,7 @@
           <div><strong>今日</strong><small>今日の予定と記録を書く</small></div>
           <div><strong>履歴</strong><small>カレンダーから過去を見る</small></div>
           <div><strong>検索</strong><small>言葉を使って記録を探す</small></div>
+          <div><strong>タグ</strong><small>分類用のタグを作成・編集する</small></div>
           <div><strong>設定</strong><small>AIやバックアップを設定する</small></div>
         </div>
         <h3>見やすさを変える</h3>
@@ -269,7 +271,7 @@
               </ol>
               <div class="example"><strong>入力例：</strong> 10時までに見積書を確認する</div>
               <p>終わった予定は、左側の丸い印をクリックします。チェックが付き、完了した数が「1 / 3」のように表示されます。</p>
-              <p>登録した予定は、左端のつまみをドラッグして順番を変えられます。鉛筆マークをクリックすると、名前の修正と期限の設定・解除ができます。期限を過ぎた未完了の予定には <strong>🔥</strong> が表示されます。</p>
+              <p>登録した予定は、左端のつまみをドラッグして順番を変えられます。鉛筆マークをクリックすると、名前の修正、期限の設定・解除、タグの付け外し、削除ができます。期限を過ぎた未完了の予定には <strong>🔥</strong> が表示されます。</p>
             </div>
           </article>
 
@@ -281,11 +283,12 @@
               <ol>
                 <li>「今日の記録」の「今あったことを書く…」をクリックします。</li>
                 <li>出来事や気づきを入力します。</li>
-                <li>必要なら「会話」「完了」「休憩」「ひらめき」「注意」の線画アイコンを選びます。</li>
+                <li>必要なら入力欄の下にある <span class="click">＋</span> をクリックし、アイコンと色を選びます。</li>
                 <li><kbd>Ctrl</kbd> を押しながら <kbd>Enter</kbd> を押して登録します。</li>
               </ol>
               <div class="example"><strong>入力例：</strong> 14:00 お客様から了承の連絡。明日発送する。</div>
-              <p>時刻は自動で付きます。登録後も、記録の横にある丸いアイコンをクリックして変更・解除できます。</p>
+              <p>時刻は自動で付きます。アイコンは「会話」「作業」「会議」「学習」「食事」「運動」など25種類から選べ、12色と組み合わせられます。最近使った組み合わせは次回の選択画面に表示されます。</p>
+              <p>登録後は、記録の横にある丸いアイコンからアイコンと色を変更・解除できます。鉛筆マークからは、内容、タグ、記録日、記録時刻を変更したり、その記録を削除したりできます。記録日を変えると、変更先の日へ記録が移動します。</p>
             </div>
           </article>
 
@@ -299,7 +302,7 @@
                 <li>上の欄にタイトル、下の広い欄に本文を入力します。</li>
                 <li>書き終えたら「保存済み」を確認し、<span class="click">閉じる</span> をクリックします。</li>
               </ol>
-              <p>長い文章、会議メモ、画像や資料をまとめたいときに便利です。詳しくは「メモの使い方」をご覧ください。</p>
+              <p>長い文章、会議メモ、画像や資料をまとめたいときに便利です。メモのカードをドラッグすると順番を変えられます。詳しくは「メモの使い方」をご覧ください。</p>
             </div>
           </article>
 
@@ -349,6 +352,7 @@
         <h2>メモの使い方</h2>
         <h3>文字を読みやすく整える</h3>
         <p>メモ編集画面の上部には、見出し・太字・箇条書き・チェックリストなどのボタンがあります。整えたい文字をマウスで選び、使いたいボタンをクリックします。<span class="click">表示</span> をクリックすると、仕上がりを確認できます。</p>
+        <p>整理用のタグを付ける場合は、メモ編集画面の <span class="click">＋ タグ</span> をクリックします。タグを作る方法は、次の「タグの使い方」をご覧ください。</p>
         <h3>画像やファイルを付ける</h3>
         <ol>
           <li>画像なら <span class="click">画像</span>、その他の資料なら <span class="click">添付</span> をクリックします。</li>
@@ -362,6 +366,24 @@
         </div>
         <h3>別のファイルとして残す</h3>
         <p>メモ画面または一日の振り返りにある <span class="click">Markdownで保存</span> をクリックすると、保存場所を選び、一般的なテキストファイル（.md）として書き出せます。添付ファイルがある場合は一緒に書き出されます。</p>
+      </section>
+
+      <section id="tags">
+        <h2>タグの使い方</h2>
+        <p class="lead">「仕事」「健康」「アイデア」など、自分に合った目印を作り、タスク・記録・メモに付けられます。</p>
+        <h3>タグを作る</h3>
+        <ol>
+          <li>上部の <span class="click">タグ</span> をクリックします。</li>
+          <li>「新しいタグ」で名前を入力し、色を選びます。</li>
+          <li>プレビューを確認して <span class="click">タグを追加</span> をクリックします。</li>
+        </ol>
+        <p>作成済みのタグは「すべてのタグ」で名前を使って絞り込めます。<span class="click">編集</span> では名前と色を変更できます。</p>
+        <h3>タスク・記録・メモに付ける</h3>
+        <p>タスクまたは記録は鉛筆マークで編集画面を開き、メモはカードを開きます。<span class="click">＋ タグ</span> をクリックしてタグを選んでください。タグは複数付けられ、付けたタグをクリックすると外せます。</p>
+        <div class="warning">
+          <strong>タグを削除しても記録は消えません</strong>
+          「タグ」画面でタグを削除すると、タスク・記録・メモからそのタグだけが外れます。各項目の内容は残ります。
+        </div>
       </section>
 
       <section id="past">
@@ -383,10 +405,10 @@
             <div>
               <ol>
                 <li>上部の <span class="click">検索</span> をクリックします。</li>
-                <li>探したい言葉を入力します。</li>
+                <li>探したい言葉を入力します。タグだけで探す場合は、検索語を空欄にしたままタグを選びます。</li>
                 <li>表示された結果をクリックすると、その日の画面が開きます。</li>
               </ol>
-              タスク・記録・メモ・振り返りをまとめて検索します。
+              タスク・記録・メモ・振り返り・AIまとめを検索できます。検索語とタグを両方指定すると、両方に一致する項目だけに絞り込まれます。
             </div>
           </details>
         </div>
@@ -403,8 +425,8 @@
           パソコンの故障に備え、Daylogのフォルダー自体も、定期的にUSBメモリーなど別の場所へコピーしてください。
         </div>
         <h3>AIによるまとめ（必要な方だけ）</h3>
-        <p>AI機能は最初はオフです。利用には、対応するAIプログラムとモデルファイルの準備が必要です。設定済みの場合は、振り返り画面の <span class="click">AIで今日をまとめる</span> から実行できます。</p>
-        <p>AIが提案した「明日への候補」は、<span class="click">＋ 明日のタスクへ</span> をクリックすると翌日の予定に追加されます。AIを使わなくても、日記の基本機能はすべて利用できます。</p>
+        <p>AI機能は最初はオフです。利用には、対応するAIプログラムとGGUF形式のモデルファイルの準備が必要です。「設定」でローカルAIを有効にし、モデルファイル、バックエンド、生成量を設定します。設定済みの場合は、振り返り画面の <span class="click">AIで今日をまとめる</span> から実行できます。</p>
+        <p>結果は「AIによる振り返りとアドバイス」として表示され、記録に基づく振り返り、成果、明日試せる小さな一歩、一言が含まれます。提案された項目は、<span class="click">＋ 明日のタスクへ</span> をクリックすると翌日の予定に追加されます。AIを使わなくても、日記の基本機能はすべて利用できます。</p>
         <h3>祝日を更新する</h3>
         <p><span class="click">設定</span> →「祝日データ」の <span class="click">公式データから更新</span> をクリックします。この操作のときだけ、内閣府のWebサイトへ接続します。</p>
       </section>
