@@ -27,7 +27,7 @@ const settings: Settings = {
 
 afterEach(cleanup);
 
-describe("SettingsPage holiday update", () => {
+describe("SettingsPage", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("shows the downloaded record count and refreshes the current day", async () => {
@@ -55,5 +55,33 @@ describe("SettingsPage holiday update", () => {
 
     await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("network failed"));
     expect(screen.getByRole("button", { name: "公式データから更新" })).toBeEnabled();
+  });
+
+  it("clamps backup generations and does not save an empty value", () => {
+    const onChange = vi.fn();
+    render(<SettingsPage settings={settings} onChange={onChange} onHolidayUpdated={vi.fn()}/>);
+    const input = screen.getByRole("spinbutton", { name: "保存する世代数" });
+
+    fireEvent.change(input, { target: { value: "0" } });
+    fireEvent.blur(input);
+    expect(onChange).toHaveBeenLastCalledWith({ ...settings, backupGenerations: 1 });
+    expect(input).toHaveValue(1);
+
+    fireEvent.change(input, { target: { value: "366" } });
+    fireEvent.blur(input);
+    expect(onChange).toHaveBeenLastCalledWith({ ...settings, backupGenerations: 365 });
+    expect(input).toHaveValue(365);
+
+    onChange.mockClear();
+    fireEvent.change(input, { target: { value: "" } });
+    fireEvent.blur(input);
+    expect(onChange).not.toHaveBeenCalled();
+    expect(input).toHaveValue(30);
+
+    for (const value of ["1", "365"]) {
+      fireEvent.change(input, { target: { value } });
+      fireEvent.blur(input);
+      expect(onChange).toHaveBeenLastCalledWith({ ...settings, backupGenerations: Number(value) });
+    }
   });
 });

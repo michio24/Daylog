@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api } from "../services/api";
 import type { Settings } from "../types";
 
@@ -8,7 +8,19 @@ export function SettingsPage({ settings, onChange, onHolidayUpdated }: Props) {
   const [holidayMessage, setHolidayMessage] = useState("");
   const [holidayError, setHolidayError] = useState(false);
   const [updatingHolidays, setUpdatingHolidays] = useState(false);
+  const [backupGenerationsInput, setBackupGenerationsInput] = useState(String(settings.backupGenerations));
+  useEffect(() => setBackupGenerationsInput(String(settings.backupGenerations)), [settings.backupGenerations]);
   const update = (patch: Partial<Settings>) => onChange({ ...settings, ...patch });
+  const commitBackupGenerations = () => {
+    const parsed = Number(backupGenerationsInput);
+    if (!backupGenerationsInput.trim() || !Number.isFinite(parsed)) {
+      setBackupGenerationsInput(String(settings.backupGenerations));
+      return;
+    }
+    const next = Math.min(365, Math.max(1, Math.trunc(parsed)));
+    setBackupGenerationsInput(String(next));
+    if (next !== settings.backupGenerations) update({ backupGenerations: next });
+  };
   const updateHolidays = async () => {
     if (updatingHolidays) return;
     setUpdatingHolidays(true);
@@ -36,7 +48,7 @@ export function SettingsPage({ settings, onChange, onHolidayUpdated }: Props) {
       {holidayMessage && <p className="setting-message" role={holidayError ? "alert" : "status"}>{holidayMessage}</p>}
     </section>
     <section className="card settings-card"><div className="settings-group"><div><h2>バックアップ</h2><p>起動時に1日1回、データベースと添付をZIPで保存します。</p></div><button onClick={() => void api.createBackup().then((path) => setBackupMessage(`作成しました: ${path}`)).catch(() => setBackupMessage("作成できませんでした"))}>今すぐ作成</button></div>
-      <label className="setting-field"><span>保存する世代数</span><input type="number" min={1} max={365} value={settings.backupGenerations} onChange={(e) => update({ backupGenerations: Number(e.target.value) })}/></label>{backupMessage && <p className="setting-message">{backupMessage}</p>}
+      <label className="setting-field"><span>保存する世代数</span><input type="number" min={1} max={365} value={backupGenerationsInput} onChange={(event) => setBackupGenerationsInput(event.target.value)} onBlur={commitBackupGenerations} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }}/></label>{backupMessage && <p className="setting-message">{backupMessage}</p>}
     </section>
     <p className="privacy-note">日記・検索内容・AI結果を外部へ送信しません。祝日更新を実行したときだけ内閣府へ接続します。</p>
   </div></main>;

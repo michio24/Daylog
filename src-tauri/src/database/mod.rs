@@ -1,5 +1,5 @@
 use crate::{holidays::HolidayCalendar, models::*};
-use chrono::{Datelike, Local, NaiveDate, SecondsFormat};
+use chrono::{Datelike, Local, LocalResult, NaiveDate, SecondsFormat, TimeZone};
 use rusqlite::{params, Connection, OptionalExtension};
 use std::{
     collections::{HashMap, HashSet},
@@ -417,9 +417,17 @@ impl Database {
     }
     pub fn create_entry(&self, date: &str, body: &str, icon: &str) -> Result<Entry, String> {
         let conn = self.0.lock().map_err(|e| e.to_string())?;
+        let selected_date =
+            NaiveDate::parse_from_str(date, "%Y-%m-%d").map_err(|_| "日付が不正です".to_string())?;
         let day = Self::day_id(&conn, date)?;
-        let stamp = now();
-        conn.execute("INSERT INTO entries(day_id,icon,body,occurred_at,created_at,updated_at) VALUES(?1,?2,?3,?4,?4,?4)",params![day,icon,body,stamp]).map_err(|e|e.to_string())?;
+        let local_date_time = selected_date.and_time(Local::now().time());
+        let stamp = match Local.from_local_datetime(&local_date_time) {
+            LocalResult::Single(value) => value,
+            LocalResult::Ambiguous(earlier, _) => earlier,
+            LocalResult::None => return Err("指定日の現在時刻を作成できません".into()),
+        }
+        .to_rfc3339_opts(SecondsFormat::Millis, false);
+        conn.execute("INSERT INTO entries(day_id,icon,body,occurred_at,created_at,updated_at) VALUES(?1,?2,?3,?4,?5,?5)",params![day,icon,body,stamp,now()]).map_err(|e|e.to_string())?;
         let id = conn.last_insert_rowid();
         self.index(&conn, "entry", id, day, body)?;
         Ok(Entry {
@@ -765,7 +773,12 @@ impl Database {
             return Ok(vec![]);
         }
         let conn = self.0.lock().map_err(|e| e.to_string())?;
-        let pattern = format!("%{}%", query.trim());
+        let escaped_query = query
+            .trim()
+            .replace('\\', "\\\\")
+            .replace('%', "\\%")
+            .replace('_', "\\_");
+        let pattern = format!("%{escaped_query}%");
         let sql = if tag_id.is_some() {
             "SELECT entity_type,entity_id,day_date,content FROM (
                SELECT 'task' AS entity_type,t.id AS entity_id,d.day_date,t.title AS content FROM tasks t JOIN days d ON d.id=t.day_id JOIN task_tags x ON x.task_id=t.id WHERE x.tag_id=?2
@@ -773,9 +786,9 @@ impl Database {
                SELECT 'entry',e.id,d.day_date,COALESCE(e.title,'')||' '||e.body FROM entries e JOIN days d ON d.id=e.day_id JOIN entry_tags x ON x.entry_id=e.id WHERE x.tag_id=?2
                UNION ALL
                SELECT 'note_card',n.id,d.day_date,n.title||' '||n.markdown FROM note_cards n JOIN days d ON d.id=n.day_id JOIN note_card_tags x ON x.note_card_id=n.id WHERE x.tag_id=?2
-             ) WHERE content LIKE ?1 ORDER BY day_date DESC LIMIT 100"
+             ) WHERE content LIKE ?1 ESCAPE '\\' ORDER BY day_date DESC LIMIT 100"
         } else {
-            "SELECT s.entity_type,s.entity_id,d.day_date,s.content FROM search_index s JOIN days d ON d.id=s.day_id WHERE s.content LIKE ?1 ORDER BY d.day_date DESC LIMIT 100"
+            "SELECT s.entity_type,s.entity_id,d.day_date,s.content FROM search_index s JOIN days d ON d.id=s.day_id WHERE s.content LIKE ?1 ESCAPE '\\' ORDER BY d.day_date DESC LIMIT 100"
         };
         let mut q=conn.prepare(sql).map_err(|e|e.to_string())?;
         let mut cursor = if tag_id.is_some() { q.query(params![pattern,tag_id]) } else { q.query(params![pattern]) }.map_err(|e| e.to_string())?;
@@ -1091,6 +1104,73 @@ mod tests {
             .iter()
             .any(|r| r.entity_type == "note_card"));
         assert!(!db.search("朝会", None).unwrap().is_empty());
+        drop(db);
+        let _ = std::fs::remove_file(&path);
+        let _ = std::fs::remove_file(path.with_extension("db-wal"));
+        let _ = std::fs::remove_file(path.with_extension("db-shm"));
+    }
+
+    #[test]
+    fn creates_entries_on_the_selected_date_and_keeps_them_there_when_updated() {
+        let path = std::env::temp_dir().join(format!(
+            "daylog-entry-date-test-{}-{}.db",
+            std::process::id(),
+            Local::now().timestamp_nanos_opt().unwrap_or_default()
+        ));
+        let db = open_test_database(&path);
+
+        for date in ["2000-01-02", "2099-12-30"] {
+            let entry = db.create_entry(date, "選択日の記録", "").unwrap();
+            assert!(entry.occurred_at.starts_with(&format!("{date}T")));
+
+            let updated = db
+                .update_entry(
+                    &Entry {
+                        body: "編集後の記録".into(),
+                        ..entry
+                    },
+                    date,
+                )
+                .unwrap();
+            assert!(updated.occurred_at.starts_with(&format!("{date}T")));
+            assert_eq!(db.get_day(date).unwrap().entries.len(), 1);
+        }
+        assert!(db.create_entry("2000-02-30", "不正な日付", "").is_err());
+
+        drop(db);
+        let _ = std::fs::remove_file(&path);
+        let _ = std::fs::remove_file(path.with_extension("db-wal"));
+        let _ = std::fs::remove_file(path.with_extension("db-shm"));
+    }
+
+    #[test]
+    fn treats_like_wildcards_as_literal_search_text() {
+        let path = std::env::temp_dir().join(format!(
+            "daylog-literal-search-test-{}-{}.db",
+            std::process::id(),
+            Local::now().timestamp_nanos_opt().unwrap_or_default()
+        ));
+        let db = open_test_database(&path);
+        let literal = db
+            .create_task("2026-09-03", r"進捗100%_done\path", false)
+            .unwrap();
+        let ordinary = db
+            .create_task("2026-09-03", "通常のタスク", false)
+            .unwrap();
+        let tag = db.create_tag("検索", "blue").unwrap();
+        db.set_task_tags(literal.id, &[tag.id]).unwrap();
+        db.set_task_tags(ordinary.id, &[tag.id]).unwrap();
+
+        for query in ["%", "_", r"\"] {
+            let results = db.search(query, None).unwrap();
+            assert_eq!(results.len(), 1, "query: {query}");
+            assert_eq!(results[0].entity_id, literal.id);
+
+            let tagged = db.search(query, Some(tag.id)).unwrap();
+            assert_eq!(tagged.len(), 1, "tagged query: {query}");
+            assert_eq!(tagged[0].entity_id, literal.id);
+        }
+
         drop(db);
         let _ = std::fs::remove_file(&path);
         let _ = std::fs::remove_file(path.with_extension("db-wal"));
