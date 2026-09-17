@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Screen, Settings } from "../types";
 import { formatHeaderDate } from "../utils/date";
+import { WindowControls } from "./WindowControls";
 
 interface Props { screen: Screen; date: string; settings: Settings; onNavigate: (screen: Screen) => void; onSettings: (settings: Settings) => void; }
 
@@ -17,8 +18,8 @@ export function Header({ screen, date, settings, onNavigate, onSettings }: Props
     window.addEventListener("pointerdown", close); window.addEventListener("keydown", escape);
     return () => { window.removeEventListener("pointerdown", close); window.removeEventListener("keydown", escape); };
   }, []);
-  return <header className="app-header">
-    <div className="brand"><span>Daylog</span><small>{formatHeaderDate(date)}</small></div>
+  return <header className="app-header" data-tauri-drag-region>
+    <div className="brand" data-tauri-drag-region><span data-tauri-drag-region>Daylog</span><small data-tauri-drag-region>{formatHeaderDate(date)}</small></div>
     <nav aria-label="メインナビゲーション">
       {(["today", "history", "search", "tags", "settings"] as Screen[]).map((item) =>
         <button key={item} className={screen === item ? "active" : ""} onClick={() => onNavigate(item)}>
@@ -40,5 +41,6 @@ export function Header({ screen, date, settings, onNavigate, onSettings }: Props
         </div>}
       </div>
     </div>
+    <WindowControls/>
   </header>;
 }
