@@ -5,6 +5,7 @@ mod commands;
 mod database;
 mod export;
 mod holidays;
+mod logging;
 mod models;
 mod settings;
 use ai::AiProcessManager;
@@ -42,7 +43,21 @@ pub fn run() {
     for dir in [&data, &backups, &logs, &models, &attachments_dir] {
         fs::create_dir_all(dir).expect("Daylog directory creation failed");
     }
-    let db = Database::open(&data.join("daylog.db"), holidays_path.clone())
+    logging::init(&root);
+    let db_path = data.join("daylog.db");
+    // スキーマ移行が走る前のデータベースを退避しておく。移行に失敗しても
+    // backups/pre-migration_*.db から手で戻せる。
+    if database::migrations::has_pending(&db_path) {
+        match backup::snapshot_before_migration(&db_path, &backups) {
+            Ok(path) => logging::info(&format!(
+                "移行前のデータベースを退避しました: {}",
+                path.display()
+            )),
+            Err(reason) => logging::error(&format!("移行前の退避に失敗しました: {reason}")),
+        }
+    }
+    let db = Database::open(&db_path, holidays_path.clone())
+        .inspect_err(|reason| logging::error(&format!("データベースを開けませんでした: {reason}")))
         .expect("database initialization failed");
     let settings =
         SettingsStore::open(root.join("settings.json")).expect("settings initialization failed");
@@ -144,6 +159,10 @@ pub fn run() {
             commands::delete_custom_holiday,
             commands::update_national_holidays,
             commands::search_entries,
+            commands::get_period_stats,
+            commands::get_period_digest,
+            commands::get_on_this_day,
+            commands::export_period_markdown,
             commands::list_tags,
             commands::create_tag,
             commands::update_tag,

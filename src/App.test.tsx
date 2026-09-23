@@ -23,7 +23,7 @@ vi.mock("./services/api", () => ({
     cancelAi: vi.fn(),
     calendar: vi.fn(),
     listTags: vi.fn(),
-    searchByTag: vi.fn()
+    search: vi.fn()
   }
 }));
 
@@ -58,7 +58,7 @@ describe("App navigation", () => {
     vi.mocked(api.saveSettings).mockResolvedValue();
     vi.mocked(api.createNoteCard).mockResolvedValue({ id: 11, title: "", markdown: "", sortOrder: 1, tags: [] });
     vi.mocked(api.listTags).mockResolvedValue([]);
-    vi.mocked(api.searchByTag).mockResolvedValue([]);
+    vi.mocked(api.search).mockResolvedValue({ results: [], total: 0, hasMore: false });
     vi.mocked(api.updateNoteCard).mockImplementation(async (card) => card);
     vi.mocked(api.deleteNoteCard).mockResolvedValue();
     vi.mocked(api.reorderNoteCards).mockResolvedValue([]);

@@ -86,6 +86,49 @@ pub fn create(
     Ok(path)
 }
 
+/// スキーマ移行の直前にデータベースだけを退避する。
+///
+/// 通常のバックアップと違い ZIP 化も添付のコピーもしない。移行が失敗しても
+/// 元のデータに戻せることが目的で、起動を待たせないよう最小限にとどめる。
+/// オンラインバックアップAPIを使うので WAL に残っている分も取りこぼさない。
+pub fn snapshot_before_migration(db_path: &Path, dir: &Path) -> Result<PathBuf, String> {
+    fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+    let stamp = Local::now().format("%Y%m%d_%H%M%S").to_string();
+    let path = dir.join(format!("pre-migration_{stamp}.db"));
+    {
+        let source = Connection::open(db_path).map_err(|e| e.to_string())?;
+        let mut target = Connection::open(&path).map_err(|e| e.to_string())?;
+        let backup = Backup::new(&source, &mut target).map_err(|e| e.to_string())?;
+        backup
+            .run_to_completion(16, Duration::from_millis(10), None)
+            .map_err(|e| e.to_string())?;
+    }
+    prune_snapshots(dir, 3);
+    Ok(path)
+}
+
+/// 移行前スナップショットを新しいものから `keep` 世代だけ残す。
+fn prune_snapshots(dir: &Path, keep: usize) {
+    let Ok(entries) = fs::read_dir(dir) else {
+        return;
+    };
+    let mut files = entries
+        .filter_map(Result::ok)
+        .map(|entry| entry.path())
+        .filter(|path| {
+            path.file_name()
+                .and_then(|v| v.to_str())
+                .is_some_and(|name| name.starts_with("pre-migration_") && name.ends_with(".db"))
+        })
+        .collect::<Vec<_>>();
+    // ファイル名が時刻順なので辞書順で古い順に並ぶ。
+    files.sort();
+    let excess = files.len().saturating_sub(keep);
+    for old in files.into_iter().take(excess) {
+        let _ = fs::remove_file(old);
+    }
+}
+
 fn rotate(dir: &Path, generations: usize) -> Result<(), String> {
     let mut files = fs::read_dir(dir)
         .map_err(|e| e.to_string())?

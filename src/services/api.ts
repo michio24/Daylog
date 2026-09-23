@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { CalendarDay, CustomHoliday, DayData, ExportResult, HolidayUpdateResult, SearchResult, Settings, Task, Entry, NoteCard, Review, AiSummary, Attachment, Tag } from "../types";
+import type { CalendarDay, CustomHoliday, DayData, ExportResult, HolidayUpdateResult, PeriodDigest, PeriodStats, SearchFilter, SearchPage, Settings, Task, Entry, NoteCard, Review, AiSummary, Attachment, Tag } from "../types";
 
 const call = <T>(command: string, args?: Record<string, unknown>) => invoke<T>(command, args);
 
@@ -28,8 +28,10 @@ export const api = {
   setCustomHoliday: (date: string, name: string) => call<CustomHoliday>("set_custom_holiday", { date, name }),
   deleteCustomHoliday: (date: string) => call<void>("delete_custom_holiday", { date }),
   updateNationalHolidays: () => call<HolidayUpdateResult>("update_national_holidays"),
-  search: (query: string) => call<SearchResult[]>("search_entries", { query }),
-  searchByTag: (query: string, tagId: number | null) => call<SearchResult[]>("search_entries", { query, tagId }),
+  search: (filter: SearchFilter) => call<SearchPage>("search_entries", { filter }),
+  periodStats: (start: string, end: string, compareStart?: string, compareEnd?: string) => call<PeriodStats>("get_period_stats", { start, end, compareStart: compareStart ?? null, compareEnd: compareEnd ?? null }),
+  periodDigest: (start: string, end: string) => call<PeriodDigest>("get_period_digest", { start, end }),
+  onThisDay: (date: string, yearsBack = 3) => call<DayData[]>("get_on_this_day", { date, yearsBack }),
   listTags: () => call<Tag[]>("list_tags"),
   createTag: (name: string, color: string) => call<Tag>("create_tag", { name, color }),
   updateTag: (tag: Tag) => call<Tag>("update_tag", { tag }),
@@ -43,5 +45,6 @@ export const api = {
   cancelAi: () => call<void>("cancel_ai"),
   createBackup: () => call<string>("create_backup"),
   exportDayMarkdown: (date: string, path: string) => call<ExportResult>("export_day_markdown", { date, path }),
+  exportPeriodMarkdown: (start: string, end: string, directory: string) => call<ExportResult[]>("export_period_markdown", { start, end, directory }),
   exportNoteMarkdown: (noteId: number, path: string) => call<ExportResult>("export_note_markdown", { noteId, path })
 };

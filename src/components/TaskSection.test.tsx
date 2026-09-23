@@ -160,7 +160,7 @@ describe("TaskSection", () => {
       { ...tasks[0], id: 3, title: "期限なし", sortOrder: 2 }
     ]);
     expect(screen.queryByLabelText("期限超過")).not.toBeInTheDocument();
-    act(() => vi.advanceTimersByTime(30_000));
+    act(() => { vi.advanceTimersByTime(30_000); });
     expect(screen.getAllByLabelText("期限超過")).toHaveLength(1);
   });
 

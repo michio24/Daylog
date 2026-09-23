@@ -118,6 +118,10 @@ impl AiProcessManager {
         let prompt_path = std::env::temp_dir().join(format!("daylog_prompt_{request_id}.txt"));
         let model_path = model_path.to_string_lossy().into_owned();
         db.start_ai_run(&request_id, day_id, &model_path, &settings.backend)?;
+        crate::logging::info(&format!(
+            "AIまとめを開始しました date={date} backend={} request={request_id}",
+            settings.backend
+        ));
         let request = serde_json::json!({"schema_version":1,"request_id":request_id,"operation":"daily_review","locale":"ja-JP","model_path":model_path,"backend":settings.backend,"context_size":settings.context_size,"generation_length":settings.generation_length,"day":snapshot});
         let bytes = serde_json::to_vec(&request).map_err(|e| e.to_string())?;
         let hash = hex::encode(Sha256::digest(&bytes));
@@ -193,6 +197,15 @@ impl AiProcessManager {
                 "failed"
             };
             let _ = db.fail_ai(&request_id, status, message);
+            crate::logging::error(&format!(
+                "AIまとめが{status}で終了しました request={request_id} 経過={}ms: {message}",
+                started.elapsed().as_millis()
+            ));
+        } else {
+            crate::logging::info(&format!(
+                "AIまとめが完了しました request={request_id} 経過={}ms",
+                started.elapsed().as_millis()
+            ));
         }
         result
     }

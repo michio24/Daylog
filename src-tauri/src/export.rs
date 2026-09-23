@@ -3,7 +3,7 @@ use chrono::{DateTime, Datelike, NaiveDate, Weekday};
 use std::{
     collections::{HashMap, HashSet},
     fs,
-    path::PathBuf,
+    path::{Path, PathBuf},
 };
 
 const EMPTY: &str = "_記録なし_";
@@ -274,6 +274,35 @@ pub fn export_day(
     })
 }
 
+/// 期間のあいだ、記録のある日だけを1日1ファイルで書き出す。
+///
+/// 書き出し先はディレクトリで、ファイル名は「2026年09月23日(水).md」のように
+/// [`japanese_date`] から作る。添付は各ファイルの `_assets` に入る
+/// （[`export_day`] の挙動をそのまま使う）。
+pub fn export_period(
+    start: &str,
+    end: &str,
+    directory: &str,
+    db: &Database,
+    paths: &AppPaths,
+) -> Result<Vec<ExportResult>, String> {
+    let days = db.daily_stats(start, end)?;
+    let directory = Path::new(directory);
+    if !directory.is_dir() {
+        return Err("書き出し先のフォルダが見つかりません".into());
+    }
+    let mut results = Vec::new();
+    for day in days.iter().filter(|day| day.has_record()) {
+        let file_name = format!("{}.md", japanese_date(&day.date)?);
+        let path = directory.join(file_name);
+        results.push(export_day(&day.date, &path.to_string_lossy(), db, paths)?);
+    }
+    if results.is_empty() {
+        return Err("この期間に書き出せる記録がありません".into());
+    }
+    Ok(results)
+}
+
 pub fn export_note(
     note_id: i64,
     path: &str,
@@ -395,6 +424,65 @@ mod tests {
             ..note
         };
         assert!(render_note_markdown(&untitled, &HashMap::new()).starts_with("# 無題のメモ\n"));
+    }
+
+    #[test]
+    fn exports_one_file_per_recorded_day_in_a_period() {
+        let root = std::env::temp_dir().join(format!(
+            "daylog-export-period-{}-{}",
+            std::process::id(),
+            Local::now().timestamp_nanos_opt().unwrap_or_default()
+        ));
+        let attachments_path = root.join("data").join("attachments");
+        fs::create_dir_all(&attachments_path).unwrap();
+        let holidays = root.join("holidays.csv");
+        let db = Database::open(&root.join("daylog.db"), holidays.clone()).unwrap();
+        let paths = AppPaths {
+            root: root.clone(),
+            backups: root.join("backups"),
+            attachments: attachments_path,
+            holidays,
+        };
+        db.create_task("2026-09-21", "月曜のタスク", false).unwrap();
+        db.create_entry("2026-09-23", "水曜の記録", "").unwrap();
+        // 9/22 は記録がないので書き出されない。
+
+        let out = root.join("out");
+        fs::create_dir_all(&out).unwrap();
+        let written = export_period(
+            "2026-09-21",
+            "2026-09-27",
+            &out.display().to_string(),
+            &db,
+            &paths,
+        )
+        .unwrap();
+        assert_eq!(written.len(), 2, "記録のある日だけを書き出すはず");
+        assert!(out.join("2026年09月21日(月).md").is_file());
+        assert!(out.join("2026年09月23日(水).md").is_file());
+        assert!(!out.join("2026年09月22日(火).md").exists());
+
+        // 記録が1件もない期間はエラーにして、空のフォルダを作らない。
+        assert!(export_period(
+            "2026-10-01",
+            "2026-10-07",
+            &out.display().to_string(),
+            &db,
+            &paths
+        )
+        .is_err());
+        // 存在しないフォルダも弾く。
+        assert!(export_period(
+            "2026-09-21",
+            "2026-09-27",
+            &root.join("missing").display().to_string(),
+            &db,
+            &paths
+        )
+        .is_err());
+
+        drop(db);
+        let _ = fs::remove_dir_all(&root);
     }
 
     #[test]

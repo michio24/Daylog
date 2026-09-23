@@ -23,7 +23,7 @@ export const TodayPage = forwardRef<TodayPageHandle, Props>(function TodayPage({
   const aiTimers = useRef<number[]>([]);
   const aiCancelled = useRef(false);
   useEffect(() => { setReview(day.review); setSaveStatus("saved"); setExportMessage(""); }, [day.dayDate]);
-  useEffect(() => () => aiTimers.current.forEach(window.clearTimeout), []);
+  useEffect(() => () => aiTimers.current.forEach((id) => window.clearTimeout(id)), []);
 
   const saveReview = useCallback(async (value: Review) => { setSaveStatus("saving"); try { await api.saveReview(day.dayDate, value); setSaveStatus("saved"); } catch { setSaveStatus("error"); throw new Error("review save failed"); } }, [day.dayDate]);
   const flushReview = useDebouncedSave(review, saveReview);
@@ -60,7 +60,7 @@ export const TodayPage = forwardRef<TodayPageHandle, Props>(function TodayPage({
       : hour < 11 ? "おはようございます" : hour < 18 ? "今日はどうですか" : "おつかれさまでした";
   const entryLabel = day.dayDate > today ? "この日の予定・記録" : day.dayDate < today ? "この日の記録" : "今日の記録";
   const holidayNames = formatHolidayNames(day.nationalHolidayName, day.customHolidayName);
-  const clearAiTimers = () => { aiTimers.current.forEach(window.clearTimeout); aiTimers.current = []; };
+  const clearAiTimers = () => { aiTimers.current.forEach((id) => window.clearTimeout(id)); aiTimers.current = []; };
   const runAi = async () => {
     aiCancelled.current = false;
     setAiStatus("starting");

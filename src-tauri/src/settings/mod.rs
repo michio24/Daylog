@@ -35,9 +35,7 @@ impl SettingsStore {
             .map_err(|e| e.to_string())
     }
     pub fn save(&self, next: Settings) -> Result<(), String> {
-        if !(MIN_BACKUP_GENERATIONS..=MAX_BACKUP_GENERATIONS)
-            .contains(&next.backup_generations)
-        {
+        if !(MIN_BACKUP_GENERATIONS..=MAX_BACKUP_GENERATIONS).contains(&next.backup_generations) {
             return Err("バックアップ世代数は1〜365で指定してください".into());
         }
         let json = serde_json::to_string_pretty(&next).map_err(|e| e.to_string())?;
@@ -55,7 +53,9 @@ mod tests {
         std::env::temp_dir().join(format!(
             "daylog-settings-{label}-{}-{}.json",
             std::process::id(),
-            chrono::Local::now().timestamp_nanos_opt().unwrap_or_default()
+            chrono::Local::now()
+                .timestamp_nanos_opt()
+                .unwrap_or_default()
         ))
     }
 

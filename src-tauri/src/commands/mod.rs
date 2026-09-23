@@ -1,5 +1,6 @@
 use crate::{
-    ai::AiProcessManager, backup, database::Database, models::*, settings::SettingsStore, AppPaths,
+    ai::AiProcessManager, backup, database::Database, logging, models::*, settings::SettingsStore,
+    AppPaths,
 };
 use chrono::{DateTime, Local, NaiveDate};
 use tauri::State;
@@ -139,7 +140,10 @@ pub fn import_attachment_from_path(
     db: State<Database>,
     paths: State<AppPaths>,
 ) -> Result<Attachment, String> {
-    crate::attachments::import_path(&path, &db, &paths)
+    logging::log_err(
+        "添付の取り込み",
+        crate::attachments::import_path(&path, &db, &paths),
+    )
 }
 #[tauri::command]
 pub fn import_attachment_bytes(
@@ -149,7 +153,10 @@ pub fn import_attachment_bytes(
     db: State<Database>,
     paths: State<AppPaths>,
 ) -> Result<Attachment, String> {
-    crate::attachments::import_bytes(&name, &mime_type, &bytes, &db, &paths)
+    logging::log_err(
+        "添付の取り込み",
+        crate::attachments::import_bytes(&name, &mime_type, &bytes, &db, &paths),
+    )
 }
 #[tauri::command]
 pub fn get_attachment(id: String, db: State<Database>) -> Result<Attachment, String> {
@@ -167,9 +174,12 @@ pub fn open_attachment(
     if !path.is_file() {
         return Err("添付ファイルが見つかりません".into());
     }
-    app.opener()
-        .open_path(path.to_string_lossy(), None::<&str>)
-        .map_err(|e| e.to_string())
+    logging::log_err(
+        "添付を開く",
+        app.opener()
+            .open_path(path.to_string_lossy(), None::<&str>)
+            .map_err(|e| e.to_string()),
+    )
 }
 #[tauri::command]
 pub fn save_review(date: String, review: Review, db: State<Database>) -> Result<(), String> {
@@ -208,20 +218,86 @@ pub async fn update_national_holidays(
     paths: State<'_, AppPaths>,
 ) -> Result<HolidayUpdateResult, String> {
     let path = paths.holidays.clone();
-    crate::holidays::download_and_update(&path).await
+    logging::log_err(
+        "祝日データの更新",
+        crate::holidays::download_and_update(&path).await,
+    )
 }
 #[tauri::command]
-pub fn search_entries(query: String, tag_id: Option<i64>, db: State<Database>) -> Result<Vec<SearchResult>, String> {
-    db.search(&query, tag_id)
+pub fn search_entries(filter: SearchFilter, db: State<Database>) -> Result<SearchPage, String> {
+    for bound in [&filter.from, &filter.to].into_iter().flatten() {
+        if NaiveDate::parse_from_str(bound, "%Y-%m-%d").is_err() {
+            return Err("期間の日付が不正です".into());
+        }
+    }
+    if let (Some(from), Some(to)) = (&filter.from, &filter.to) {
+        if from > to {
+            return Err("期間の開始日が終了日より後です".into());
+        }
+    }
+    db.search(&filter)
+}
+
+#[tauri::command]
+pub fn get_period_stats(
+    start: String,
+    end: String,
+    compare_start: Option<String>,
+    compare_end: Option<String>,
+    db: State<Database>,
+) -> Result<PeriodStats, String> {
+    let compare = match (&compare_start, &compare_end) {
+        (Some(from), Some(to)) => Some((from.as_str(), to.as_str())),
+        _ => None,
+    };
+    logging::log_err("期間の統計", db.period_stats(&start, &end, compare))
+}
+
+#[tauri::command]
+pub fn get_period_digest(
+    start: String,
+    end: String,
+    db: State<Database>,
+) -> Result<PeriodDigest, String> {
+    logging::log_err("期間の読み物", db.period_digest(&start, &end))
+}
+
+#[tauri::command]
+pub fn export_period_markdown(
+    start: String,
+    end: String,
+    directory: String,
+    db: State<Database>,
+    paths: State<AppPaths>,
+) -> Result<Vec<ExportResult>, String> {
+    logging::log_err(
+        "期間のエクスポート",
+        crate::export::export_period(&start, &end, &directory, &db, &paths),
+    )
+}
+
+#[tauri::command]
+pub fn get_on_this_day(
+    date: String,
+    years_back: u32,
+    db: State<Database>,
+) -> Result<Vec<DayData>, String> {
+    db.on_this_day(&date, years_back)
 }
 
 fn valid_tag(name: &str, color: &str) -> Result<(), String> {
-    if name.trim().is_empty() { return Err("タグ名が空です".into()); }
-    if !ENTRY_COLORS.contains(&color) { return Err("タグの色が正しくありません".into()); }
+    if name.trim().is_empty() {
+        return Err("タグ名が空です".into());
+    }
+    if !ENTRY_COLORS.contains(&color) {
+        return Err("タグの色が正しくありません".into());
+    }
     Ok(())
 }
 #[tauri::command]
-pub fn list_tags(db: State<Database>) -> Result<Vec<Tag>, String> { db.list_tags() }
+pub fn list_tags(db: State<Database>) -> Result<Vec<Tag>, String> {
+    db.list_tags()
+}
 #[tauri::command]
 pub fn create_tag(name: String, color: String, db: State<Database>) -> Result<Tag, String> {
     valid_tag(&name, &color)?;
@@ -234,13 +310,25 @@ pub fn update_tag(mut tag: Tag, db: State<Database>) -> Result<Tag, String> {
     db.update_tag(&tag)
 }
 #[tauri::command]
-pub fn delete_tag(id: i64, db: State<Database>) -> Result<(), String> { db.delete_tag(id) }
+pub fn delete_tag(id: i64, db: State<Database>) -> Result<(), String> {
+    db.delete_tag(id)
+}
 #[tauri::command]
-pub fn set_task_tags(id: i64, tag_ids: Vec<i64>, db: State<Database>) -> Result<Vec<Tag>, String> { db.set_task_tags(id, &tag_ids) }
+pub fn set_task_tags(id: i64, tag_ids: Vec<i64>, db: State<Database>) -> Result<Vec<Tag>, String> {
+    db.set_task_tags(id, &tag_ids)
+}
 #[tauri::command]
-pub fn set_entry_tags(id: i64, tag_ids: Vec<i64>, db: State<Database>) -> Result<Vec<Tag>, String> { db.set_entry_tags(id, &tag_ids) }
+pub fn set_entry_tags(id: i64, tag_ids: Vec<i64>, db: State<Database>) -> Result<Vec<Tag>, String> {
+    db.set_entry_tags(id, &tag_ids)
+}
 #[tauri::command]
-pub fn set_note_card_tags(id: i64, tag_ids: Vec<i64>, db: State<Database>) -> Result<Vec<Tag>, String> { db.set_note_card_tags(id, &tag_ids) }
+pub fn set_note_card_tags(
+    id: i64,
+    tag_ids: Vec<i64>,
+    db: State<Database>,
+) -> Result<Vec<Tag>, String> {
+    db.set_note_card_tags(id, &tag_ids)
+}
 #[tauri::command]
 pub fn get_settings(store: State<SettingsStore>) -> Result<Settings, String> {
     store.get()
@@ -259,9 +347,12 @@ pub async fn run_daily_ai(
     let db = db.inner().clone();
     let ai = ai.inner().clone();
     let settings = store.get()?;
-    tauri::async_runtime::spawn_blocking(move || ai.run(&db, &date, &settings))
-        .await
-        .map_err(|e| e.to_string())?
+    logging::log_err(
+        "AIまとめの生成",
+        tauri::async_runtime::spawn_blocking(move || ai.run(&db, &date, &settings))
+            .await
+            .map_err(|e| e.to_string())?,
+    )
 }
 #[tauri::command]
 pub fn cancel_ai(ai: State<AiProcessManager>) -> Result<(), String> {
@@ -273,14 +364,17 @@ pub fn create_backup(
     store: State<SettingsStore>,
     paths: State<AppPaths>,
 ) -> Result<String, String> {
-    backup::create(
-        &db,
-        &paths.backups,
-        &paths.attachments,
-        &paths.holidays,
-        store.get()?.backup_generations,
+    logging::log_err(
+        "バックアップの作成",
+        backup::create(
+            &db,
+            &paths.backups,
+            &paths.attachments,
+            &paths.holidays,
+            store.get()?.backup_generations,
+        )
+        .map(|p| p.display().to_string()),
     )
-    .map(|p| p.display().to_string())
 }
 
 #[tauri::command]
@@ -290,7 +384,10 @@ pub fn export_day_markdown(
     db: State<Database>,
     paths: State<AppPaths>,
 ) -> Result<ExportResult, String> {
-    crate::export::export_day(&date, &path, &db, &paths)
+    logging::log_err(
+        "1日分のエクスポート",
+        crate::export::export_day(&date, &path, &db, &paths),
+    )
 }
 
 #[tauri::command]
@@ -300,7 +397,10 @@ pub fn export_note_markdown(
     db: State<Database>,
     paths: State<AppPaths>,
 ) -> Result<ExportResult, String> {
-    crate::export::export_note(note_id, &path, &db, &paths)
+    logging::log_err(
+        "メモのエクスポート",
+        crate::export::export_note(note_id, &path, &db, &paths),
+    )
 }
 
 #[cfg(test)]

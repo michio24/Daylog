@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Header } from "./components/Header";
 import { HistoryPage } from "./pages/HistoryPage";
+import { ReviewPage } from "./pages/ReviewPage";
 import { SearchPage } from "./pages/SearchPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { TagsPage } from "./pages/TagsPage";
@@ -43,6 +44,7 @@ export default function App() {
     const handler = (e: KeyboardEvent) => {
       if (!e.ctrlKey) return;
       if (e.key.toLowerCase() === "f") { e.preventDefault(); void (async () => { try { await todayPage.current?.flush(); setScreen("search"); } catch (saveError) { setError(`データを保存できないため画面を移動しませんでした: ${String(saveError)}`); } })(); }
+      if (e.key.toLowerCase() === "e") { e.preventDefault(); void (async () => { try { await todayPage.current?.flush(); setScreen("review"); } catch (saveError) { setError(`データを保存できないため画面を移動しませんでした: ${String(saveError)}`); } })(); }
       if (e.key.toLowerCase() === "m") { e.preventDefault(); setScreen("today"); window.setTimeout(() => document.querySelector<HTMLButtonElement>("#daily-note .note-add")?.focus()); }
       if (e.key.toLowerCase() === "r") { e.preventDefault(); setScreen("today"); window.setTimeout(() => document.getElementById("daily-review")?.scrollIntoView({ behavior: "smooth" })); }
       if (e.key.toLowerCase() === "t") { e.preventDefault(); setScreen("today"); window.setTimeout(() => { taskInput.current = document.querySelector<HTMLInputElement>(".task-section input"); taskInput.current?.focus(); }); }
@@ -56,7 +58,8 @@ export default function App() {
     {error && <div className="toast" role="alert">{error}<button onClick={() => setError("")}>×</button></div>}
     {!day ? <main className="loading">記録を読み込んでいます…</main> : <>
       {screen === "today" && <TodayPage ref={todayPage} key={day.dayDate} day={day} tags={tags} settings={settings} onDay={setDay} onOpenDate={loadDay} onError={setError}/>}
-      {screen === "history" && <HistoryPage onOpenDay={(selected) => { setDay(selected); setScreen("today"); }}/>} 
+      {screen === "history" && <HistoryPage onOpenDay={(selected) => { setDay(selected); setScreen("today"); }}/>}
+      {screen === "review" && <ReviewPage onOpenDate={(date) => void loadDay(date)} onError={setError}/>}
       {screen === "search" && <SearchPage tags={tags} onOpen={(date) => void loadDay(date)}/>}
       {screen === "tags" && <TagsPage tags={tags} onTags={setTags} onError={setError}/>}
       {screen === "settings" && <SettingsPage settings={settings} onChange={updateSettings} onHolidayUpdated={async () => setDay(await api.getDay(activeDate))}/>}

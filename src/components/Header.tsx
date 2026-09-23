@@ -21,9 +21,9 @@ export function Header({ screen, date, settings, onNavigate, onSettings }: Props
   return <header className="app-header" data-tauri-drag-region>
     <div className="brand" data-tauri-drag-region><span data-tauri-drag-region>Daylog</span><small data-tauri-drag-region>{formatHeaderDate(date)}</small></div>
     <nav aria-label="メインナビゲーション">
-      {(["today", "history", "search", "tags", "settings"] as Screen[]).map((item) =>
+      {(["today", "history", "review", "search", "tags", "settings"] as Screen[]).map((item) =>
         <button key={item} className={screen === item ? "active" : ""} onClick={() => onNavigate(item)}>
-          {{ today: "今日", history: "履歴", search: "検索", tags: "タグ", settings: "設定" }[item]}
+          {{ today: "今日", history: "履歴", review: "ふりかえり", search: "検索", tags: "タグ", settings: "設定" }[item]}
         </button>)}
     </nav>
     <div className="header-actions">
