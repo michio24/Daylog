@@ -227,11 +227,11 @@
 
       <section id="screens">
         <h2>画面の見方</h2>
-        <p>画面上部の名前をクリックすると、5つの画面を切り替えられます。</p>
+        <p>画面上部の名前をクリックすると、6つの画面を切り替えられます。</p>
         <figure class="screen-map" aria-label="Daylogの画面構成図">
           <div class="fake-header">
             <div class="fake-logo">Daylog</div>
-            <div class="fake-nav"><span class="active">今日</span><span>履歴</span><span>検索</span><span>タグ</span><span>設定</span></div>
+            <div class="fake-nav"><span class="active">今日</span><span>履歴</span><span>ふりかえり</span><span>検索</span><span>タグ</span><span>設定</span></div>
           </div>
           <div class="fake-body">
             <div class="fake-title"></div>
@@ -247,6 +247,7 @@
         <div class="legend-grid">
           <div><strong>今日</strong><small>今日の予定と記録を書く</small></div>
           <div><strong>履歴</strong><small>カレンダーから過去を見る</small></div>
+          <div><strong>ふりかえり</strong><small>週ごと・月ごとにまとめて見る</small></div>
           <div><strong>検索</strong><small>言葉を使って記録を探す</small></div>
           <div><strong>タグ</strong><small>分類用のタグを作成・編集する</small></div>
           <div><strong>設定</strong><small>AIやバックアップを設定する</small></div>
@@ -409,6 +410,25 @@
                 <li>表示された結果をクリックすると、その日の画面が開きます。</li>
               </ol>
               タスク・記録・メモ・振り返り・AIまとめを検索できます。検索語とタグを両方指定すると、両方に一致する項目だけに絞り込まれます。
+              <p>検索語の書き方:</p>
+              <ul>
+                <li>空白で区切ると、<strong>すべてを含む</strong>ものを探します（例: <code>会議 資料</code>）。</li>
+                <li><code>OR</code> をはさむと、<strong>どちらかを含む</strong>ものを探します（例: <code>会議 OR 打合せ</code>）。</li>
+                <li>言葉の前に <code>-</code> を付けると、<strong>それを含まない</strong>ものに絞ります（例: <code>会議 -資料</code>）。</li>
+                <li><code>"…"</code> で囲むと、その並びで続けて出てくるものを探します。</li>
+              </ul>
+              <p>「種類」で探す対象を、「期間」で今週・今月・今年に絞り込めます。結果が多いときは、一覧の下の <span class="click">さらに読み込む</span> で続きを表示します。</p>
+            </div>
+          </details>
+          <details open>
+            <summary>週ごと・月ごとにまとめて見る</summary>
+            <div>
+              <ol>
+                <li>上部の <span class="click">ふりかえり</span> をクリックします。</li>
+                <li><span class="click">週</span> <span class="click">月</span> で単位を切り替え、<span class="click">‹</span> <span class="click">›</span> で期間を移動します。</li>
+                <li>マス目の日付をクリックすると、その日の画面が開きます。</li>
+              </ol>
+              記録した日数、タスクの完了数、時間帯や曜日ごとの記録量、よく使ったタグがまとめて表示されます。その期間に書いた振り返り、まだ終わっていないタスク、AIの一行まとめも並びます。数値の下には前の期間との差も出ます。
             </div>
           </details>
         </div>
